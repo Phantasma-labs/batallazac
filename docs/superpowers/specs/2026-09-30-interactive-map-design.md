@@ -50,17 +50,30 @@ The project doubles as:
 - City/Cathedral are greyboxed at the real center point (the Cathedral —
   22.7756°N, 102.5723°W — is local origin (0,0)).
 
-**Texturing pipeline — camera projection, not UV/procedural:** matching
-the VFX matte-painting technique already familiar from this project's
-Nuke/AE pipeline. For each layer (terrain first, then landmarks, then
-city), a stylized/painted reference image is generated (Nano Banana, via
-the Magnify/Magnific connector) from the exact diorama camera viewpoint,
-then camera-projected onto that layer's geometry in Blender. This keeps
-the painted-board illustration look (see
-[Research/VisualReferences.md](../../../Research/VisualReferences.md))
-while the underlying asset stays real, continuity-safe 3D geometry.
-Terrain material direction: semi-arid/desert, no vegetation layer needed
-(matches the real high-plateau climate and reference photography).
+**Texturing pipeline — unresolved, in progress.** Full history and
+technical detail lives in [Blender/PIPELINE.md](../../../Blender/PIPELINE.md)
+(read that before touching texturing, not just this summary):
+- **Camera projection** (matte-painting style, matching the VFX technique
+  from this project's Nuke/AE pipeline) was tried first — worked only
+  from its exact source camera angle, broke down under the camera
+  movement the whole 3D pivot exists to support. **Rejected.**
+- **Procedural shader material** (slope/noise-based, view-independent by
+  construction) was tried next — real technical fixes needed (noise
+  scale for world-unit scale, AgX view transform crushing the palette)
+  but the result read as flat/plain, not "painted illustrated board."
+  Noise alone doesn't have the brushwork a painted image has. **Doubtful
+  this reaches the target look even with more tuning.**
+- **Planar top-down UV mapping** (proposed, not yet executed): unwrap the
+  terrain to match lat/lon position directly — the way real terrain/
+  satellite texturing works — and drape a single painted top-down board
+  image (in the spirit of the original `ImageReference/mapa.png`
+  direction) over it. Combines painted-art quality with true view-
+  independence (a real UV unwrap, not a camera snapshot). Next thing to
+  try.
+
+Terrain material direction regardless of technique: semi-arid/desert, no
+vegetation layer needed (matches the real high-plateau climate and
+reference photography).
 
 **Why this doesn't change the app's interaction model:** the pin-
 selection → camera-transition → video-overlay flow and `locations.json`
@@ -112,8 +125,9 @@ which was already the design.
 
 - **Stack:** React + Vite (static build, no server required) +
   Three.js/react-three-fiber for the map scene (real 3D terrain, built in
-  Blender, textured via camera-projected AI-generated stylized images —
-  see Roadmap) + plain HTML5 `<video>` for playback.
+  Blender — texturing approach still unresolved, see Roadmap and
+  [Blender/PIPELINE.md](../../../Blender/PIPELINE.md)) + plain HTML5
+  `<video>` for playback.
 - ~~Why PixiJS over DOM/CSS for the map~~ *(superseded)*: the map needs
   layered parallax art, many small animated icons, and atmospheric
   particle effects (smoke, dust) while staying smooth on modest kiosk/
@@ -132,7 +146,8 @@ which was already the design.
 ### Components
 
 - **`MapScene` (Three.js/r3f canvas)** — renders the 3D terrain (Blender-
-  built, camera-projected painted texture) and pin pieces. Handles
+  built; texture pipeline still unresolved, see Roadmap) and pin pieces.
+  Handles
   orbit/pan/zoom camera control (clamped to sane bounds), pin idle
   animation (gentle bob/glow/pulse loop), and pin selection → camera
   dolly transition → emits the selected location id.
