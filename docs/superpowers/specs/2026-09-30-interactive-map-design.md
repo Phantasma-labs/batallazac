@@ -28,6 +28,70 @@ The project doubles as:
   swapping clips, or standing up a different historical map later is a data
   change, not a code change.
 
+## Roadmap — Revised (2026-09-30): Proper 3D From v1
+
+> **Supersedes the original two-phase plan below the divider.** Decision:
+> the map renderer is Three.js/r3f from the start, not a later upgrade.
+> Reason — a baked 2D painted board fundamentally cannot support real
+> camera movement: panning/zooming over a flat image is a fake dolly (it
+> magnifies pixels, it doesn't reveal geometry), and generating discrete
+> painted frames per camera state won't hold together between cuts
+> (lighting/proportions drift between AI generations). Real 3D geometry is
+> the only way the camera continuously moves between pins without seams.
+
+**Terrain/geometry pipeline (Blender):**
+- Real-world DEM (SRTM, fetched via OpenTopoData) drives base terrain
+  displacement, at true relative scale/position — see
+  `Blender/heightmaps/zacatecas_dem.json` and `Blender/Source/Map_Layout.blend`.
+- Iconic landmarks (La Bufa's mesa/cliff silhouette first; El Grillo and
+  others as needed) are hand-sculpted on top of the DEM, carved into a
+  blended "socket" rather than left as raw satellite noise, using real
+  photo references (e.g. `ImageReference/cerrobufa.png`).
+- City/Cathedral are greyboxed at the real center point (the Cathedral —
+  22.7756°N, 102.5723°W — is local origin (0,0)).
+
+**Texturing pipeline — camera projection, not UV/procedural:** matching
+the VFX matte-painting technique already familiar from this project's
+Nuke/AE pipeline. For each layer (terrain first, then landmarks, then
+city), a stylized/painted reference image is generated (Nano Banana, via
+the Magnify/Magnific connector) from the exact diorama camera viewpoint,
+then camera-projected onto that layer's geometry in Blender. This keeps
+the painted-board illustration look (see
+[Research/VisualReferences.md](../../../Research/VisualReferences.md))
+while the underlying asset stays real, continuity-safe 3D geometry.
+Terrain material direction: semi-arid/desert, no vegetation layer needed
+(matches the real high-plateau climate and reference photography).
+
+**Why this doesn't change the app's interaction model:** the pin-
+selection → camera-transition → video-overlay flow and `locations.json`
+are unaffected — only the map's renderer and asset pipeline changed from
+the original plan below. Video clips remain flat 1920x1080 — no 3D
+needed there; the only seam is "3D map camera move → cut to flat video,"
+which was already the design.
+
+---
+
+## Original Roadmap (superseded, kept for record)
+
+- **Phase 1 (this spec): 2D.** PixiJS map, illustrated/layered board art
+  (see [Research/VisualReferences.md](../../../Research/VisualReferences.md)),
+  flat pan/zoom camera with a settle-on-selection move into each pin.
+  Ships the 5 MVP pins end to end.
+- **Phase 2 (future, not this build): 3D upgrade.** Once Phase 1 proves
+  the content and art direction, upgrade the map renderer to Three.js/r3f
+  — real camera dolly through 3D space into a pin before cutting to
+  video, terrain and pieces modeled (Blender) and rendered in an
+  illustrated/toon-shaded (NPR) style rather than photoreal. Bigger
+  pipeline (3D modeling/rigging + custom shaders) and a tighter kiosk/
+  tablet performance budget, so it's a deliberate later decision, not a
+  default.
+- **Why this doesn't change how Phase 1 is built:** the pin-selection →
+  camera-transition → video-overlay flow is implemented as its own module,
+  separate from how the map renders. `locations.json` and that
+  interaction flow stay the same across the upgrade; only the renderer
+  (PixiJS → Three.js) and the art assets change. The Phase 2 upgrade
+  should be additive, not a rewrite.
+
 ## Non-Goals (v1)
 
 - No 360°/WebXR/VR. All media is flat 1920x1080 video.
@@ -41,25 +105,37 @@ The project doubles as:
 
 ## Architecture
 
-- **Stack:** React + Vite (static build, no server required) + PixiJS for
-  the map canvas + plain HTML5 `<video>` for playback.
-- **Why PixiJS over DOM/CSS for the map:** the map needs layered parallax
-  art, many small animated icons, and atmospheric particle effects (smoke,
-  dust) while staying smooth on modest kiosk/tablet hardware. PixiJS
-  (WebGL-accelerated 2D canvas) is built for exactly this and is
-  meaningfully simpler to build and maintain than a full 3D engine
-  (Three.js), which isn't needed once media dropped the 360° requirement.
+> **Updated (2026-09-30) per the Roadmap decision above:** the map canvas
+> is Three.js/r3f, not PixiJS. The PixiJS rationale immediately below is
+> kept for the record (still correct reasoning for a 2D-only approach)
+> but no longer describes what's being built.
+
+- **Stack:** React + Vite (static build, no server required) +
+  Three.js/react-three-fiber for the map scene (real 3D terrain, built in
+  Blender, textured via camera-projected AI-generated stylized images —
+  see Roadmap) + plain HTML5 `<video>` for playback.
+- ~~Why PixiJS over DOM/CSS for the map~~ *(superseded)*: the map needs
+  layered parallax art, many small animated icons, and atmospheric
+  particle effects (smoke, dust) while staying smooth on modest kiosk/
+  tablet hardware. PixiJS (WebGL-accelerated 2D canvas) is built for
+  exactly this and is meaningfully simpler to build and maintain than a
+  full 3D engine — reasoning that held until the camera-continuity problem
+  (see Roadmap) made real 3D geometry necessary regardless of the extra
+  complexity.
 - **Why plain `<video>` over a WebGL video texture:** media is flat 1080p,
   so there's no projection/sphere math to justify piping video through
   WebGL. A DOM `<video>` in a modal overlay is simpler, more robust across
-  browsers/kiosk hardware, and easier to debug.
+  browsers/kiosk hardware, and easier to debug. Still true under Three.js
+  — the video overlay stays a separate DOM layer, not a texture in the 3D
+  scene.
 
 ### Components
 
-- **`MapScene` (PixiJS canvas)** — renders the vintage map background,
-  parallax layers, and pin sprites. Handles pan (drag), zoom (wheel/pinch,
-  clamped to sane min/max bounds), pin idle animation (gentle bob/glow/
-  pulse loop), and pin tap/click → emits the selected location id.
+- **`MapScene` (Three.js/r3f canvas)** — renders the 3D terrain (Blender-
+  built, camera-projected painted texture) and pin pieces. Handles
+  orbit/pan/zoom camera control (clamped to sane bounds), pin idle
+  animation (gentle bob/glow/pulse loop), and pin selection → camera
+  dolly transition → emits the selected location id.
 - **`MediaOverlay` (DOM)** — full-screen modal shown when a pin is
   selected. Plays the location's video (autoplay with sound on open),
   shows title + bilingual caption text, and a close control that returns to
