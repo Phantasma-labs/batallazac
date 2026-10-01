@@ -14,6 +14,16 @@ sampler, and the 8-bit height PNG can band on slopes. Baked geometry also
 allows adaptive triangle density (detail on La Bufa's cliffs, less on flat
 ground).
 
+**Revision (2026-10-01, later): floor v2 and the definitive layout.** The floor is now
+`Terrain_Zacatecas.001` from `Map_Layout_v02.blend`: real geometry (46,656 triangles, no
+decimation or bake of the heightfield needed) in two materials, the painted terrain map (4096 px)
+and a wooden frame whose procedural material was baked to a texture on its own UV map. Both
+textures are embedded in `floor_baked.glb` (15 MB), so the app no longer loads a separate floor
+texture and must not override the GLB's materials. All pieces were re-exported from the new layout
+(world positions changed; the app frames from loaded bounds, so nothing else depends on them) and
+`glows.glb` holds the four red/blue faction decals. The Stage 0 section below describes the
+superseded flat-plane bake and is kept for the record.
+
 ## Goal
 
 `npm run dev` in `app/` shows the textured Zacatecas terrain with the
