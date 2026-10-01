@@ -29,15 +29,14 @@ To run it you need an export folder laid out like this:
 ```
 <exports>/
   meshes/
-    floor_baked.glb        terrain (Draco-compressed GLB)
+    floor_baked.glb        terrain + wooden frame, textures embedded (Draco-compressed GLB)
     cathedral.glb  labufa_fort.glb  elgrillo_emplacement.glb
     vetagrande_cannons.glb  soldiers_federal.glb  soldiers_villista.glb
-  textures/floor/
-    floor_basecolor.jpg    terrain base colour (4096 px)
+    glows.glb              the red/blue faction decals (alpha-blended, emissive)
 ```
 
 The models are listed in [`src/scene/assets.json`](src/scene/assets.json). Edit that file to use your own
-set; the only hard requirements are a floor mesh with a base-colour texture and any number of piece GLBs
+set; the only hard requirements are a floor mesh (with its textures embedded in the GLB) and any number of piece GLBs
 whose node transforms already hold their world positions (1 unit = 10 real metres, glTF Y-up).
 
 ## Run

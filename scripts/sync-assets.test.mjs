@@ -129,6 +129,23 @@ describe('syncAssets', () => {
     expect(existsSync(join(dirs.publicDir, 'models', 'new_piece.glb'))).toBe(false)
   })
 
+  // The floor GLB can embed its own textures; then there is no separate floor texture to require, copy or list.
+  it('syncs without a floor texture when the manifest has none (textures embedded in the GLB)', () => {
+    const embedded = { floor: { model: 'models/floor_baked.glb' }, pieces: MANIFEST.pieces }
+    rmSync(join(dirs.exportsDir, 'textures'), { recursive: true, force: true })
+    const { copied } = syncAssets({ ...dirs, manifest: embedded })
+    expect(copied.filter((c) => c.startsWith('textures/'))).toEqual([])
+    expect(existsSync(join(dirs.publicDir, 'textures'))).toBe(false)
+    expect(existsSync(join(dirs.publicDir, 'models', 'floor_baked.glb'))).toBe(true)
+  })
+
+  it('removes a floor texture left over from an earlier sync once the manifest no longer uses one', () => {
+    syncAssets(dirs) // copies textures/floor/floor_basecolor.jpg
+    const embedded = { floor: { model: 'models/floor_baked.glb' }, pieces: MANIFEST.pieces }
+    syncAssets({ ...dirs, manifest: embedded })
+    expect(existsSync(join(dirs.publicDir, 'textures', 'floor', 'floor_basecolor.jpg'))).toBe(false)
+  })
+
   it('has no warnings when everything exported is used', () => {
     expect(syncAssets(dirs).warnings).toEqual([])
   })

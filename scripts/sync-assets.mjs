@@ -43,8 +43,10 @@ function replaceDir(finalDir, populate) {
  */
 export function syncAssets({ exportsDir, publicDir, dracoDir, manifest, copy = cpSync }) {
   const meshesDir = join(exportsDir, 'meshes')
-  const basecolorName = basename(manifest.floor.basecolor)
-  const basecolorSrc = join(exportsDir, 'textures', 'floor', basecolorName)
+  // The floor GLB may embed its textures; a separate floor texture is only used when the manifest names one.
+  const basecolor = manifest.floor.basecolor
+  const basecolorName = basecolor ? basename(basecolor) : null
+  const basecolorSrc = basecolor ? join(exportsDir, 'textures', 'floor', basecolorName) : null
   const wanted = [...new Set([manifest.floor.model, ...manifest.pieces.map((p) => p.url)].map((u) => basename(u)))]
 
   if (!existsSync(meshesDir)) throw new Error(`meshes folder not found: ${meshesDir}`)
@@ -62,7 +64,7 @@ export function syncAssets({ exportsDir, publicDir, dracoDir, manifest, copy = c
       throw new Error(`${name} is not a valid GLB (empty or wrong header; is Blender still writing it?)`)
     }
   }
-  if (!existsSync(basecolorSrc)) throw new Error(`${basecolorName} not found: ${basecolorSrc}`)
+  if (basecolor && !existsSync(basecolorSrc)) throw new Error(`${basecolorName} not found: ${basecolorSrc}`)
   for (const f of DRACO_FILES) {
     if (!existsSync(join(dracoDir, f))) throw new Error(`Draco decoder file missing: ${join(dracoDir, f)} (run npm install)`)
   }
@@ -78,10 +80,14 @@ export function syncAssets({ exportsDir, publicDir, dracoDir, manifest, copy = c
       copied.push(`models/${name}`)
     }
   })
-  replaceDir(join(publicDir, dirname(manifest.floor.basecolor)), (dir) => {
-    copy(basecolorSrc, join(dir, basecolorName))
-    copied.push(manifest.floor.basecolor)
-  })
+  if (basecolor) {
+    replaceDir(join(publicDir, dirname(basecolor)), (dir) => {
+      copy(basecolorSrc, join(dir, basecolorName))
+      copied.push(basecolor)
+    })
+  } else {
+    rmSync(join(publicDir, 'textures'), { recursive: true, force: true }) // only ever created by earlier syncs
+  }
   replaceDir(join(publicDir, 'draco'), (dir) => {
     for (const f of DRACO_FILES) {
       copy(join(dracoDir, f), join(dir, f))
