@@ -6,3 +6,4 @@ dist
 public/models
 public/textures
 public/draco
+*.tmp

@@ -1,0 +1,14 @@
+{
+  "floor": {
+    "model": "models/floor_baked.glb",
+    "basecolor": "textures/floor/floor_basecolor.jpg"
+  },
+  "pieces": [
+    { "id": "cathedral", "url": "models/cathedral.glb" },
+    { "id": "labufa-fort", "url": "models/labufa_fort.glb" },
+    { "id": "elgrillo-emplacement", "url": "models/elgrillo_emplacement.glb" },
+    { "id": "vetagrande-cannons", "url": "models/vetagrande_cannons.glb" },
+    { "id": "soldiers-federal", "url": "models/soldiers_federal.glb" },
+    { "id": "soldiers-villista", "url": "models/soldiers_villista.glb" }
+  ]
+}

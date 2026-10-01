@@ -1,16 +1,17 @@
 import { MapControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef, type ComponentRef } from 'react'
-import { Vector3 } from 'three'
+import { Vector3, type PerspectiveCamera } from 'three'
 import {
-  MAX_DISTANCE,
   MAX_POLAR_DEG,
   MIN_DISTANCE,
   MIN_POLAR_DEG,
   VFOV_DEG,
+  clampCameraHeight,
   clampTarget,
   defaultFraming,
   fitDistance,
+  maxDistanceFor,
   panVector,
   type Bounds,
 } from './math'
@@ -25,6 +26,7 @@ export function MapCamera({ bounds }: { bounds: Bounds }) {
   const get = useThree((s) => s.get)
   const controls = useRef<ComponentRef<typeof MapControls>>(null)
   const keys = useKeyboardPan()
+  const maxDistance = useMemo(() => maxDistanceFor(bounds), [bounds])
 
   // Framed once per terrain. Reading the size via get() (not a subscription) means a window
   // resize does not reset the user's view.
@@ -39,9 +41,13 @@ export function MapCamera({ bounds }: { bounds: Bounds }) {
     camera.lookAt(target.x, target.y, target.z)
     controls.current?.target.set(target.x, target.y, target.z)
     controls.current?.update()
+    // The far plane must always reach the whole board from the farthest allowed zoom.
+    const persp = camera as PerspectiveCamera
+    persp.far = Math.max(persp.far, maxDistance * 2.5)
+    persp.updateProjectionMatrix()
     // Dev-only hook for manual checks; `advance` steps the frame loop when the tab is not being painted.
     if (import.meta.env.DEV) Object.assign(window, { __map: { camera, controls: controls.current, bounds, advance: get().advance } })
-  }, [camera, framing, bounds, get])
+  }, [camera, framing, bounds, get, maxDistance])
 
   // Runs after drei's controls.update() (priority -1), so we adjust the final state each frame.
   useFrame((_, delta) => {
@@ -62,6 +68,9 @@ export function MapCamera({ bounds }: { bounds: Bounds }) {
     camera.position.y += clamped.y - c.target.y
     camera.position.z += clamped.z - c.target.z
     c.target.set(clamped.x, clamped.y, clamped.z)
+
+    // Never let the camera sink into the terrain, whatever relief the loaded floor has.
+    camera.position.y = clampCameraHeight(camera.position.y, bounds)
   })
 
   return (
@@ -70,7 +79,7 @@ export function MapCamera({ bounds }: { bounds: Bounds }) {
       makeDefault
       screenSpacePanning={false}
       minDistance={MIN_DISTANCE}
-      maxDistance={MAX_DISTANCE}
+      maxDistance={maxDistance}
       minPolarAngle={rad(MIN_POLAR_DEG)}
       maxPolarAngle={rad(MAX_POLAR_DEG)}
     />

@@ -100,7 +100,9 @@ The pieces carry their own embedded textures. Only the floor needs external ones
 ## Stack
 
 Vite + React + TypeScript, `three`, `@react-three/fiber`, `@react-three/drei`.
-Static build, no server, per the parent spec.
+Static build, no backend, per the parent spec. `dist/` must be served over HTTP (browsers block module
+scripts and model fetches from `file://`); the README documents this and `index.html` shows a hint until the
+app mounts.
 
 ## Asset delivery
 
@@ -119,19 +121,24 @@ the app never needs internet.
 
 Each unit has one job and a narrow interface.
 
-- **`sceneAssets.ts`** — manifest: an array of `{ id, url }` for the six piece
-  GLBs. Adding a piece to the scene is one line.
+- **`assets.json` / `sceneAssets.ts`** — manifest of the floor model + texture and an array of
+  `{ id, url }` for the six piece GLBs, in JSON so `npm run sync-assets` can cross-check it against what
+  Blender exported (missing, renamed, unused, empty or half-written files are reported by name, and a failed
+  sync leaves the previous `public/` copy untouched). Adding a piece is one line in `assets.json`.
 - **`Terrain`** — loads `floor_baked.glb` and `floor_basecolor.jpg`; applies
   the `floor_baked.json` settings (`flipY = false`, sRGB, anisotropy and
   mipmaps; no normal map, no displacement). Real geometry, so normal frustum
-  culling and normal raycasting. Exposes the floor's world bounding box.
+  culling and normal raycasting. Exposes the floor's world bounding box, and fails loudly (error screen naming
+  the file) if the export contains no geometry.
 - **`Piece`** — generic: loads one GLB via drei `useGLTF` (local Draco path)
   and renders its scene as-is, preserving every node's transform.
 - **`MapCamera`** — perspective camera framed like the Blender diorama camera
   (~29 degrees from top-down, 50 mm-equivalent field of view), drei
   `MapControls`. Target, zoom distance and polar angle are clamped to the
   floor's bounds. A `useKeyboardPan` hook adds arrow keys / WASD panning at the
-  current zoom, clamped identically (parent spec, "Keyboard navigation").
+  current zoom, clamped identically (parent spec, "Keyboard navigation"). The zoom cap scales with the
+  loaded floor (a wider floor can still be seen whole in a narrow window) and the camera is never allowed
+  below the highest terrain point, whatever relief the floor has.
 - **`Lighting`** — warm directional key light, hemisphere fill, background
   colour matched to the terrain edge. No shadows.
 - **`Loader`** — DOM overlay driven by drei `useProgress`.

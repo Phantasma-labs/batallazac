@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
-
-const PAN_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'])
+import { applyKeyEvent } from './keyboard'
 
 function isTyping(target: EventTarget | null): boolean {
   return (
@@ -11,8 +10,8 @@ function isTyping(target: EventTarget | null): boolean {
 
 /**
  * Tracks which pan keys (WASD / arrows) are held. The camera reads the set every frame, so
- * holding a key pans smoothly. Browser chords (Ctrl/Cmd/Alt + key) and typing in form fields
- * are ignored, and every held key is released when the window loses focus so the camera
+ * holding a key pans smoothly. The key rules live in `applyKeyEvent` (tested); this hook only wires
+ * them to the window, and releases every held key when the window loses focus so the camera
  * cannot drift on its own.
  */
 export function useKeyboardPan() {
@@ -21,13 +20,11 @@ export function useKeyboardPan() {
   useEffect(() => {
     const held = keys.current
     const onDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return
-      const key = e.key.toLowerCase()
-      if (!PAN_KEYS.has(key)) return
-      held.add(key)
-      e.preventDefault() // keep the arrow keys from scrolling the page
+      if (applyKeyEvent(held, e, isTyping(e.target))) e.preventDefault()
     }
-    const onUp = (e: KeyboardEvent) => held.delete(e.key.toLowerCase())
+    const onUp = (e: KeyboardEvent) => {
+      applyKeyEvent(held, e, false)
+    }
     const release = () => held.clear()
 
     window.addEventListener('keydown', onDown)

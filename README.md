@@ -21,9 +21,23 @@ npm run sync-assets
 ```
 
 and reload. No code changes are needed as long as the files keep their names (`floor_baked.glb`,
-`cathedral.glb`, ...). To add a new piece, drop its `.glb` in `Blender/Exports/meshes/` and add one line to
-`src/scene/sceneAssets.ts`. Set `EXPORTS_DIR` to sync from somewhere other than `../Blender/Exports`.
+`cathedral.glb`, ...). The list of models the app shows is `src/scene/assets.json`: to add a piece, export its
+`.glb` to `Blender/Exports/meshes/` and add one line there; if you rename a file in Blender, update its name
+there. `sync-assets` checks the two against each other and tells you about a missing, renamed, unused,
+empty or half-written model, and leaves the previous working copy untouched when it refuses to sync.
+Set `EXPORTS_DIR` to sync from somewhere other than `../Blender/Exports`.
 The floor is regenerated with `Blender/heightmaps/bake_floor_mesh.py`.
+
+## Deploy (kiosk or any static host)
+
+```bash
+npm run sync-assets   # after every Blender re-export
+npm run build         # public/ is copied into dist/ at build time, so rebuild after each sync
+```
+
+Serve `dist/` with any static web server. There is no backend, but browsers do not allow opening
+`dist/index.html` straight from disk (`file://`): module scripts and model fetches are blocked, and the page
+stays blank. For a quick local check use `npm run preview`.
 
 ## Scripts
 

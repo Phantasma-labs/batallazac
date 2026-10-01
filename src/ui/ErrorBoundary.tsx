@@ -16,7 +16,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
         <h1 style={{ fontSize: 20 }}>Could not load the scene</h1>
         <p>{error.message}</p>
         <p>
-          If a model or texture is missing, re-export it from Blender and run <code>npm run sync-assets</code>.
+          If a model or texture is missing: re-export it from Blender, run <code>npm run sync-assets</code>, make
+          sure its name matches <code>src/scene/assets.json</code>, then reload this page.
         </p>
       </div>
     )

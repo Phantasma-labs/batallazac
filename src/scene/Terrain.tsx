@@ -28,7 +28,12 @@ export function Terrain({ onBounds }: { onBounds: (bounds: Bounds) => void }) {
       }
     })
     scene.updateWorldMatrix(true, true)
-    onBounds(boundsFromBox(new Box3().setFromObject(scene)))
+    try {
+      onBounds(boundsFromBox(new Box3().setFromObject(scene)))
+    } catch (err) {
+      // An export with no mesh (wrong selection in Blender) must say so, not leave a blank canvas.
+      throw new Error(`${FLOOR.model}: ${(err as Error).message}. Select the floor mesh in Blender and export again.`)
+    }
   }, [scene, basecolor, maxAnisotropy, onBounds])
 
   return <primitive object={scene} />

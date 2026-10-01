@@ -7,9 +7,11 @@ import {
   TILT_DEG,
   VFOV_DEG,
   boundsFromBox,
+  clampCameraHeight,
   clampTarget,
   defaultFraming,
   fitDistance,
+  maxDistanceFor,
   panVector,
   type Bounds,
 } from './math'
@@ -23,6 +25,12 @@ describe('boundsFromBox', () => {
   it('maps a Box3 to Bounds', () => {
     const b = boundsFromBox(new Box3(new Vector3(1, 2, 3), new Vector3(4, 5, 6)))
     expect(b).toEqual({ minX: 1, maxX: 4, minY: 2, maxY: 5, minZ: 3, maxZ: 6 })
+  })
+})
+
+describe('boundsFromBox with no geometry', () => {
+  it('throws instead of returning infinite bounds (an empty floor export must not give a blank canvas)', () => {
+    expect(() => boundsFromBox(new Box3())).toThrow(/no geometry/)
   })
 })
 
@@ -47,8 +55,43 @@ describe('fitDistance', () => {
   it('never leaves the allowed zoom range', () => {
     const huge: Bounds = { ...FLOOR, minX: -1e6, maxX: 1e6 }
     const flat: Bounds = { ...FLOOR, minX: 5, maxX: 5 }
-    expect(fitDistance(huge, VFOV_DEG, 16 / 9)).toBe(MAX_DISTANCE)
+    expect(fitDistance(huge, VFOV_DEG, 16 / 9)).toBeLessThanOrEqual(maxDistanceFor(huge))
     expect(fitDistance(flat, VFOV_DEG, 16 / 9)).toBe(MIN_DISTANCE)
+    // an absurdly narrow window cannot push the camera past the zoom cap either
+    expect(fitDistance(FLOOR, VFOV_DEG, 0.05)).toBe(maxDistanceFor(FLOOR))
+  })
+  it('still fits a wider re-done floor in a portrait window instead of clamping at a fixed cap', () => {
+    const wider: Bounds = { ...FLOOR, minX: -420, maxX: 420 }
+    const d = fitDistance(wider, VFOV_DEG, 0.5)
+    expect(d).toBeGreaterThan(MAX_DISTANCE) // the raw fit for an 840-wide board at aspect 0.5 is about 4130
+    expect(d).toBeLessThanOrEqual(maxDistanceFor(wider))
+  })
+})
+
+describe('maxDistanceFor', () => {
+  it('never drops below MAX_DISTANCE', () => {
+    expect(maxDistanceFor(FLOOR)).toBeGreaterThanOrEqual(MAX_DISTANCE)
+  })
+  it('lets the user zoom out far enough to see the whole width in a very narrow window', () => {
+    for (const w of [718, 840, 1500]) {
+      const b: Bounds = { ...FLOOR, minX: -w / 2, maxX: w / 2 }
+      const rawFitAtAspect04 = w / 2 / (Math.tan((VFOV_DEG * Math.PI) / 360) * 0.4)
+      expect(maxDistanceFor(b)).toBeGreaterThanOrEqual(rawFitAtAspect04)
+    }
+  })
+})
+
+describe('clampCameraHeight', () => {
+  it('lifts a camera that is below the highest point of the terrain', () => {
+    expect(clampCameraHeight(10, FLOOR)).toBeGreaterThan(FLOOR.maxY)
+  })
+  it('leaves a camera that is already clear of the terrain alone', () => {
+    expect(clampCameraHeight(500, FLOOR)).toBe(500)
+  })
+  it('follows the floor that was actually loaded (a taller re-done floor lifts the limit)', () => {
+    const tall: Bounds = { ...FLOOR, maxY: 120 }
+    expect(clampCameraHeight(60, tall)).toBeGreaterThan(120)
+    expect(clampCameraHeight(60, FLOOR)).toBe(60)
   })
 })
 

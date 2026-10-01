@@ -7,7 +7,7 @@ import { ALL_PUBLIC_FILES, PIECES } from './sceneAssets'
 const publicDir = fileURLToPath(new URL('../../public', import.meta.url))
 
 describe('scene asset manifest', () => {
-  it('only references files that exist in public/ (run `npm run sync-assets` if this fails)', () => {
+  it('only references files that exist in public/ (run `npm run sync-assets`; if a name changed, edit src/scene/assets.json)', () => {
     const missing = ALL_PUBLIC_FILES.filter((f) => !existsSync(join(publicDir, f)))
     expect(missing).toEqual([])
   })

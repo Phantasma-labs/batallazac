@@ -11,6 +11,10 @@ export const MIN_POLAR_DEG = 10
 export const MAX_POLAR_DEG = 70
 export const MIN_DISTANCE = 60
 export const MAX_DISTANCE = 4000
+/** Camera stays this far above the highest terrain point so it can never enter the geometry. */
+export const CAMERA_CLEARANCE = 2
+/** The narrowest window aspect the zoom cap still guarantees a full-width view for (a phone in portrait). */
+const NARROWEST_ASPECT = 0.4
 /** Keyboard pan speed as a fraction of the camera's distance per second. */
 export const PAN_SPEED = 0.6
 
@@ -18,6 +22,10 @@ const rad = (deg: number) => (deg * Math.PI) / 180
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
 
 export function boundsFromBox(box: Box3): Bounds {
+  // An empty Box3 has min=+Infinity / max=-Infinity, which would turn every framing value into NaN.
+  if (box.isEmpty() || ![box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z].every(Number.isFinite)) {
+    throw new Error('bounding box is empty: the model has no geometry')
+  }
   return { minX: box.min.x, maxX: box.max.x, minY: box.min.y, maxY: box.max.y, minZ: box.min.z, maxZ: box.max.z }
 }
 
@@ -25,11 +33,28 @@ export function clampTarget(t: Vec3, b: Bounds): Vec3 {
   return { x: clamp(t.x, b.minX, b.maxX), y: clamp(t.y, b.minY, b.maxY), z: clamp(t.z, b.minZ, b.maxZ) }
 }
 
-/** Distance at which the board's width fills the horizontal field of view. */
-export function fitDistance(b: Bounds, vfovDeg: number, aspect: number): number {
+/** Distance at which a board of this width fills the horizontal field of view, before any clamping. */
+function rawFitDistance(width: number, vfovDeg: number, aspect: number): number {
   const halfH = Math.atan(Math.tan(rad(vfovDeg) / 2) * aspect)
-  const d = (b.maxX - b.minX) / 2 / Math.tan(halfH)
-  return clamp(d, MIN_DISTANCE, MAX_DISTANCE)
+  return width / 2 / Math.tan(halfH)
+}
+
+/**
+ * Farthest the user may zoom out. Scales with the loaded board so a wider re-done floor can still be
+ * seen whole in a narrow window; never less than MAX_DISTANCE.
+ */
+export function maxDistanceFor(b: Bounds): number {
+  return Math.max(MAX_DISTANCE, 1.2 * rawFitDistance(b.maxX - b.minX, VFOV_DEG, NARROWEST_ASPECT))
+}
+
+/** Distance at which the board's width fills the horizontal field of view, within the zoom range. */
+export function fitDistance(b: Bounds, vfovDeg: number, aspect: number): number {
+  return clamp(rawFitDistance(b.maxX - b.minX, vfovDeg, aspect), MIN_DISTANCE, maxDistanceFor(b))
+}
+
+/** Lowest camera height: above the highest terrain point, whatever floor was loaded. */
+export function clampCameraHeight(y: number, b: Bounds): number {
+  return Math.max(y, b.maxY + CAMERA_CLEARANCE)
 }
 
 /** Camera south of the board centre (+z), TILT_DEG away from straight down, looking at the centre. */
