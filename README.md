@@ -8,8 +8,6 @@ It started as the map layer for a short documentary and is being built as a reus
 map-based historical pieces: content is data-driven, runs in a plain browser, needs no backend, and is
 meant to work on a tablet or a museum kiosk PC.
 
-![Default view of the battlefield from the south: textured terrain with the city, El Grillo (west), La Bufa (east) and the Vetagrande artillery line (north)](docs/images/default-view.png)
-
 ## Status
 
 **Milestone 1, the scene foundation, is done:** the baked terrain and landmark/unit models render with a
