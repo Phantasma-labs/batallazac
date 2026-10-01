@@ -246,6 +246,132 @@ Manual QA checklist before each milestone:
 - Overlay close returns cleanly to the map in the same pan/zoom state.
 - Idle/attract behavior triggers correctly after inactivity.
 
+## Addendum (2026-09-30): Camera Continuity, Free Navigation, and the Battle Timeline
+
+Extends the pin-selection flow from the Architecture section above and adds
+a new timeline component. Written after the terrain/piece art pipeline
+(Blender) produced the first working pieces and faction glow decals — see
+[Blender/PIPELINE.md](../../../Blender/PIPELINE.md).
+
+### Pin selection → match-cut → video
+
+The existing flow is "pin selection → camera dolly transition → emits
+location id," then `MediaOverlay` plays the video. This refines the
+transition's *endpoint*: it must land on the exact framing the location's
+video opens on, so the cut from the 3D camera move to the flat video is
+invisible (a match cut), not a jarring angle change — "the first frame of
+the video" per the brief that prompted this addendum.
+
+- Each location's `cameraTarget` (position + look-at) is authored once,
+  when that location's hero video is produced — the camera transform is
+  derived from whatever virtual angle the source image for that video was
+  generated at, recorded back into `locations.json`. It's content, not a
+  computed value, because it has to match one specific rendered clip.
+- `MapScene` dollies the camera to `cameraTarget` on pin selection;
+  `MediaOverlay` only opens (and the video only starts) once that
+  transition completes — the dolly is the pre-roll, not a separate
+  loading beat running alongside it.
+
+### After the video: idle orbit, then free control
+
+Still ends with "overlay close returns cleanly to the map," but adds a step
+before that:
+
+1. Video ends (or the user closes it) → `MediaOverlay` closes.
+2. Camera does a slow idle orbit/drift around the just-viewed location for
+   a few seconds — ambient, non-interactive. Reuses the kiosk/attract
+   idle-motion system already specced below rather than building a second
+   one.
+3. Orbit ends → control hands back to the user: mouse/touch pan+zoom
+   (existing) plus keyboard pan (new, below). The user is not forced back
+   to a default framing; they keep exploring from wherever the orbit left
+   off.
+
+### Keyboard navigation (new)
+
+Arrow keys / WASD pan the camera across the board's X/Y plane at the
+current zoom level, clamped to the same bounds as mouse/touch pan.
+Additive to `MapScene`'s existing camera control, not a replacement —
+desktop users get a third input method alongside drag-pan and
+scroll-zoom; touch/kiosk behavior is unchanged.
+
+### Battle timeline (new component: `TimelineScrubber`)
+
+A bottom-of-screen draggable slider spanning the battle's real timeline
+(per [Research/La Batalla de Zacatecas (1914).md](../../../Research/La%20Batalla%20de%20Zacatecas%20%281914%29.md),
+roughly dawn to ~18:00 on 23 June 1914). Scrubbing it does two things:
+
+1. **Animates movement arrows** on the terrain — faction-colored paths
+   (same red/blue convention as the piece glow decals: red for
+   Villa/Ángeles, blue for the Federal army) that draw themselves in as
+   the scrubber crosses each movement's start time, following the real
+   road routes already painted into the terrain art where the history has
+   a road (e.g., the Vetagrande → city corridor), or a direct curve where
+   it doesn't. Arrows live in 3D on the terrain surface, not as a flat 2D
+   screen overlay, so they stay correct as the user pans/zooms/orbits.
+2. **Intensifies each location's glow decal** when the scrubber crosses
+   that location's historical event time (El Grillo's blue glow
+   brightens around ~16:00 when it fell, La Bufa's around ~18:00, etc.) —
+   a storytelling cue pointing at "this is happening right now," not an
+   access gate.
+
+**Explicit design decision:** pins stay clickable at every scrubber
+position. Gating pin access by timeline position would make the
+experience linear, which contradicts the v1 Goal of non-linear
+exploration stated above. The timeline is a parallel storytelling layer
+the user can scrub independently of which pins they've opened — scrub to
+16:00 and watch El Grillo light up without being forced to have already
+watched Vetagrande's video.
+
+### Data model additions
+
+```json
+{
+  "id": "el-grillo",
+  "...": "...existing fields unchanged...",
+  "cameraTarget": {
+    "position": { "x": 0, "y": 0, "z": 0 },
+    "lookAt": { "x": 0, "y": 0, "z": 0 }
+  },
+  "factionColor": "blue",
+  "eventTime": "16:00"
+}
+```
+
+```json
+// timeline.json — new file, battlefield movement events
+[
+  {
+    "id": "angeles-advance",
+    "time": "10:00",
+    "faction": "red",
+    "path": [
+      { "x": 0.32, "y": 0.18 },
+      { "x": 0.40, "y": 0.45 }
+    ],
+    "label": { "es": "...", "en": "..." }
+  }
+]
+```
+
+- `factionColor` is `"red" | "blue" | null` — `null` for the civilian
+  Cathedral pin, which gets no glow (consistent with the "no military
+  reference" decision made during piece production: that pin's story is
+  civilians under fire, not a combat position).
+- `path` points reuse the same normalized (0–1) `mapPosition` convention
+  as pins, so both stay correct independent of map resolution.
+
+### Open items (this addendum)
+
+- `cameraTarget` values can't be filled in until each location's hero
+  video exists — a placeholder/default framing (e.g., looking straight
+  down at the pin from a fixed height) unblocks `MapScene` development
+  before video production finishes.
+- Arrow path routing along painted roads vs. direct curves needs a pass
+  once more of the terrain's road network is confirmed in the final art.
+- Idle-orbit duration and easing aren't decided — needs a quick prototype
+  to feel out "lingering" vs. "impatient."
+
 ## Open Items
 
 - Confirm the 5th pin (Zacatecas City Center vs. alternative).
