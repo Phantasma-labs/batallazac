@@ -8,6 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "sync-assets": "node scripts/sync-assets.mjs",
+    "pretest": "npm run sync-assets",
     "test": "vitest run"
   },
   "dependencies": {
