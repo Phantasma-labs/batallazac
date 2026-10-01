@@ -186,9 +186,10 @@ app/
 
 ## Verification
 
-No automated tests (parent spec: none for v1). Stage 0 is verified with the
-measured checks above. The app is verified by running the dev server and using
-the built-in browser:
+Unit tests (vitest) cover only pure logic: the asset sync script and the camera
+maths. There are no browser or visual automated tests (parent spec: none for
+v1). Stage 0 was verified with the measured checks above. The app is verified by
+running the dev server and driving it in a real (headless) Chrome:
 
 - No console errors; the loader appears and then clears.
 - Terrain shading consistent with the Blender render of the baked floor (not
