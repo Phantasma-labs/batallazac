@@ -1,0 +1,8 @@
+node_modules
+dist
+*.log
+.superpowers
+# synced from Blender/Exports by `npm run sync-assets`
+public/models
+public/textures
+public/draco
