@@ -32,7 +32,8 @@ To run it you need an export folder laid out like this:
     floor_baked.glb        terrain + wooden frame, textures embedded (Draco-compressed GLB)
     cathedral.glb  labufa_fort.glb  elgrillo_emplacement.glb
     vetagrande_cannons.glb  soldiers_federal.glb  soldiers_villista.glb
-    glows.glb              the red/blue faction decals (alpha-blended, emissive)
+    glows.glb              the red/blue faction decals (alpha-blended, emissive, draped on the terrain)
+    compass.glb            vintage compass rose plane on the terrain, upper-right corner
 ```
 
 The models are listed in [`src/scene/assets.json`](src/scene/assets.json). Edit that file to use your own
