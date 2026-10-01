@@ -2,6 +2,12 @@
   "name": "toma-zacatecas-app",
   "private": true,
   "version": "0.1.0",
+  "description": "Interactive 3D map of the 1914 Battle of Zacatecas (React + three.js)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Phantasma-labs/batallazac.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +15,6 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "sync-assets": "node scripts/sync-assets.mjs",
-    "pretest": "npm run sync-assets",
     "test": "vitest run"
   },
   "dependencies": {
