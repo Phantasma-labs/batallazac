@@ -1,3 +1,12 @@
+import { MapScene } from './scene/MapScene'
+import { ErrorBoundary } from './ui/ErrorBoundary'
+import { Loader } from './ui/Loader'
+
 export default function App() {
-  return <h1>La Toma de Zacatecas</h1>
+  return (
+    <ErrorBoundary>
+      <MapScene />
+      <Loader />
+    </ErrorBoundary>
+  )
 }
