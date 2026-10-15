@@ -1,0 +1,17 @@
+import { useFrame, useThree } from '@react-three/fiber'
+import { useRef } from 'react'
+import { SHADOW_INTERVAL, shadowDirty } from './shadowDirty'
+
+/** Renders the shadow map again, a few times a second, while soldiers or guns are moving (nothing else in the scene does). */
+export function ShadowSync() {
+  const shadowMap = useThree((s) => s.gl.shadowMap)
+  const since = useRef(0)
+  useFrame((_, delta) => {
+    since.current += delta
+    if (since.current >= SHADOW_INTERVAL && shadowDirty.take()) {
+      shadowMap.needsUpdate = true
+      since.current = 0
+    }
+  })
+  return null
+}

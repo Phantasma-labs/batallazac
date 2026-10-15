@@ -1,0 +1,93 @@
+import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import { AdditiveBlending, CanvasTexture, MeshStandardMaterial, type Group, type PerspectiveCamera } from 'three'
+import { clock } from '../timeline/clock'
+import { unitPresence, type ResolvedMarch, type Unit } from '../timeline/model'
+import { CLOTH, clothGeometry, clothMaterial } from './flagCloth'
+import { FORM, makeUnitTrack, newUnitState, unitStateAt } from './formation'
+import { COLORS, stopPoint } from './marchShared'
+import { screenScale } from './screenScale'
+import { useHeightField } from './useHeightField'
+import type { Board } from './useBoard'
+
+const POLE = 96
+/** Ángeles' flag stands this far south of his guns (world units), so the pole is not through a cannon. */
+const GUN_FLAG_OFFSET = { x: 0, z: 50 }
+const FLAG_ORDER = 7
+
+/** A soft round glow, drawn once and shared. */
+let haloTexture: CanvasTexture | null = null
+function halo(): CanvasTexture {
+  if (haloTexture) return haloTexture
+  const c = document.createElement('canvas')
+  c.width = c.height = 128
+  const ctx = c.getContext('2d')!
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.25, 'rgba(255,255,255,0.45)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 128, 128)
+  haloTexture = new CanvasTexture(c)
+  return haloTexture
+}
+
+/**
+ * One unit on the board, marked by a glowing flag that stands at its place and follows its marches. The troops themselves are
+ * the statues (and Ángeles' guns, see `Cannons`); the flag keeps its size on screen in the wide shot and stays on the terrain.
+ */
+export function Flag({ unit, marches, board }: { unit: Unit; marches: ResolvedMarch[]; board: Board }) {
+  const color = COLORS[unit.track]
+  const ground = useHeightField()
+  const track = useMemo(() => makeUnitTrack(stopPoint(unit.start, board.places), marches.filter((m) => m.unit === unit.id)), [unit, marches, board])
+  const geometry = useMemo(() => clothGeometry(), [])
+  useEffect(() => () => geometry.dispose(), [geometry])
+  const materials = useMemo(
+    () => ({
+      pole: new MeshStandardMaterial({ color: '#f4ead4', emissive: '#f4ead4', emissiveIntensity: 0.5, toneMapped: false, transparent: true }),
+      finial: new MeshStandardMaterial({ color: '#ffd98a', emissive: '#ffd98a', emissiveIntensity: 0.8, toneMapped: false, transparent: true }),
+      cloth: clothMaterial(color),
+    }),
+    [color],
+  )
+  useEffect(() => () => Object.values(materials).forEach((m) => m.dispose()), [materials])
+
+  const root = useRef<Group>(null)
+  const scratch = useRef({ state: newUnitState(), wave: 0, walk: 0 })
+
+  useFrame((state, delta) => {
+    const g = root.current
+    if (!g) return
+    const s = scratch.current
+    // A unit that enters late is not on the board before that, and grows in (from nothing) as it arrives.
+    const presence = unitPresence(unit, clock.time)
+    g.visible = presence > 0
+    if (presence <= 0) return
+    const st = unitStateAt(track, clock.time, s.state)
+    const camera = state.camera as PerspectiveCamera
+    const height = state.size.height
+    const scale = screenScale(camera, st, height, 1, (FORM.pixelsPerUnit * height) / 768, FORM.minScale, FORM.maxScale)
+    const ox = unit.track === 'angeles' ? GUN_FLAG_OFFSET.x : 0
+    const oz = unit.track === 'angeles' ? GUN_FLAG_OFFSET.z : 0
+    g.position.set(st.x + ox, ground(st.x + ox, st.z + oz), st.z + oz)
+    g.scale.setScalar(scale * presence * presence * (3 - 2 * presence))
+    s.walk += ((st.walking && clock.playing ? 1 : 0) - s.walk) * (1 - Math.exp(-8 * delta))
+    s.wave += delta * (s.walk > 0.5 ? 9 : 4)
+    materials.cloth.uniforms.uPhase.value = s.wave
+  })
+
+  return (
+    <group ref={root}>
+      <mesh position={[0, POLE / 2, 0]} material={materials.pole} renderOrder={FLAG_ORDER}>
+        <cylinderGeometry args={[1.2, 1.4, POLE, 8]} />
+      </mesh>
+      <mesh position={[0, POLE + 1, 0]} material={materials.finial} renderOrder={FLAG_ORDER}>
+        <sphereGeometry args={[2.8, 12, 8]} />
+      </mesh>
+      <mesh geometry={geometry} material={materials.cloth} position={[0, POLE - CLOTH.h / 2 - 1, 0]} renderOrder={FLAG_ORDER} />
+      <sprite position={[-CLOTH.w / 2, POLE - CLOTH.h / 2 - 1, 0]} scale={[140, 140, 1]} renderOrder={3}>
+        <spriteMaterial map={halo()} color={color} blending={AdditiveBlending} transparent depthWrite={false} opacity={0.6} />
+      </sprite>
+    </group>
+  )
+}

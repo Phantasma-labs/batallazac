@@ -1,0 +1,124 @@
+{
+  "updated": "2026-10-09, evening",
+  "tests": 380,
+  "pieces": [
+    {
+      "name": "Pins and labels",
+      "status": "lose",
+      "gap": "labels must never be covered by units/smoke/arrows; kicker >=10 px (round 5 interrupted: see HANDOFF.md)",
+      "rounds": [
+        {
+          "n": 1,
+          "verdict": "ours lost. Labels are tiny uniform tags that sit on the map instead of in it; wants big tracked ground-plane names sized by importance."
+        },
+        {
+          "n": 2,
+          "verdict": "ours lost both pairs. Cream-on-tan labels ghosted by depth of field, size tiers shift per shot, markers are tiny dots."
+        },
+        {
+          "n": 3,
+          "verdict": "ours lost both pairs. Labels about 3x the width of the hill; pins look pasted on; no rule for marker vs label."
+        },
+        {
+          "n": 4,
+          "verdict": "round 4: ours lost both pairs. Units, smoke and arrows are drawn over place names; \"Cerro de\" kicker too small."
+        }
+      ]
+    },
+    {
+      "name": "Timeline bar and captions",
+      "status": "win",
+      "gap": "none open (critic noted: sub-caption text could be slightly larger; left as is)",
+      "rounds": [
+        {
+          "n": 1,
+          "verdict": "ours lost both pairs. Dock covers a quarter of the frame with 8 px text; wants one big caption, ~8% height, metadata on hover."
+        },
+        {
+          "n": 2,
+          "verdict": "ours WON both pairs. Big clock beside a headline-plus-detail caption with a faction tag reads when and what at a glance."
+        }
+      ]
+    },
+    {
+      "name": "Marching units (flags and bars retired)",
+      "status": "lose",
+      "gap": "the author removed the flags and the bars on 2026-10-09: each unit is now the soldier or cannon statue itself (they walk, turn and fire). The trails stay.",
+      "rounds": [
+        {
+          "n": 1,
+          "verdict": "ours lost both pairs. Markers are specks, not forces; wants side-coloured formations 60-120 px long with a heading and a bold trail."
+        },
+        {
+          "n": 2,
+          "verdict": "ours lost both pairs. One small marker per force; warm colours blur with warm terrain and fire."
+        },
+        {
+          "n": 3,
+          "verdict": "ours won the 15:00 pair (Villa front in the city), lost the 10:25 pair (small, heading unclear)."
+        },
+        {
+          "n": 4,
+          "verdict": "round 4: ours lost both pairs. Forces read as clusters of small flags; wants bolder flat bars and wide soft trails."
+        }
+      ],
+      "label": "retired: the units are statues now"
+    },
+    {
+      "name": "Attack arrows",
+      "status": "lose",
+      "gap": "fatter lit band, firing unit visibly linked to the strike, bigger flash (round 5 interrupted: see HANDOFF.md)",
+      "rounds": [
+        {
+          "n": 1,
+          "verdict": "ours lost both pairs. Flat repeating chevrons cross the whole map like an overlay; wants a tapered translucent ribbon plus fire/smoke impact."
+        },
+        {
+          "n": 2,
+          "verdict": "ours WON the wide-shot pair, lost the close-up pair. Impact is a tiny dot; wants a 4-5x layered smoke plume."
+        },
+        {
+          "n": 3,
+          "verdict": "ours won the 15:00 pair (tapered map-coloured arrow), lost the 12:25 pair (impact too small)."
+        },
+        {
+          "n": 4,
+          "verdict": "round 4: ours lost both pairs. Arrow band too thin and flat; impact needs a bigger hotter flash and a visible link from the firing unit."
+        }
+      ]
+    },
+    {
+      "name": "Camera follows events, scrubs back cleanly",
+      "status": "win",
+      "gap": "zoom to hotspots is now OFF by the user (?zoom=on restores it); the camera stays on the wide shot",
+      "rounds": [
+        {
+          "n": 1,
+          "verdict": "functional check, not a visual comparison: at 09:30, 11:00, 12:00 the flags stand where the data says; scrubbing back returns them and the lens to the earlier shots."
+        }
+      ],
+      "label": "zoom off"
+    }
+  ],
+  "log": [
+    "Spec approved; dev panel deferred, two lanes, Loreto dropped, Villa from the south-west station.",
+    "Core built with tests: clock, events, marches, attacks, shots, pins, ground sampler, ribbons.",
+    "Scene pieces built and wired: pins, flags, trails, arrows, director, timeline bar, landscape notice.",
+    "Reference frames captured from the Gettysburg animated map (3 frames in docs/superpowers/progress/frames).",
+    "Round 1 started: baseline frames paired blind with the reference; critics running for pins, bar, flags, arrows.",
+    "Round 1 verdict: ours lost every blind pair (pins, bar, flags, arrows). Round 2: four builders, one per piece, each in its own files and browser tab.",
+    "User correction: Ángeles advances to Cerro de Loreto (circled on a screenshot), not La Sierpe. Loreto is now a non-clickable pin at about (45, -65); march, attacks, shot and spec updated; builders told.",
+    "Round 2: bar builder finished (tests 287 passing); pins, formations and arrows builders still working.",
+    "Round 2: pins builder finished (tests 287 passing). Waiting on formations and arrows builders.",
+    "Round 2: formations builder finished (tests 299 passing). Only the arrows builder is still working.",
+    "Round 2 frames captured at 1344x768 (wide shot at 12:25 included); 4 new blind critics running (tests 333 passing, typecheck clean).",
+    "Round 2 verdicts: bar won both pairs; arrows won 1 of 2; pins and flags lost both. Round 3 builders resumed for pins, flags and arrows.",
+    "User decision: no zoom to hotspots in the timeline for now. Camera stays on the wide shot (?zoom=on restores it). Remaining pieces are judged in the wide shot only.",
+    "Round 3 built: pins as signposts with near-opaque labels, Villa front of 16 bars + Ángeles gun line, impact plumes. Wide-shot frames captured; critics running (tests 355).",
+    "Round 3 verdicts (wide shot): forces 1/2, arrows 1/2, pins 0/2. Round 4 builders resumed.",
+    "Round 4 built: grounded 3D markers + smaller labels, deployed columns with lit chevron, big smoke plumes (tests 383). Critics running.",
+    "Round 4 verdicts: pins 0/2, forces 0/2, arrows 0/2 (critics noisy: arrows won a pair in round 3). Round 5 sent: labels always on top, bolder bars, fatter arrows.",
+    "Session wrapped up at the user's request. Round 5 builders stopped; typecheck, 383 tests and the production build pass. See HANDOFF.md for the next small tasks.",
+    "2026-10-09 evening, the author's list: flags and bars removed; Natera's army in the south-west fires on El Grillo from 10:00; Villa's soldiers (a copy of the villista statue) fire on La Sierpe as they march; the guns turn to their targets and fire on La Bufa and Cerro de Loreto, then from Loreto on La Bufa, La Sierpe and El Grillo; the federal groups fire back, fall back from El Grillo to the centre and, after the 17:00 explosion, to La Bufa, and leave past the south-east corner when it falls at 19:00. One timeline lane; the control row is at the top, the caption in the bottom-right corner."
+  ]
+}

@@ -11,7 +11,15 @@ import manifest from './assets.json'
 export const DRACO_PATH = 'draco/'
 
 export const FLOOR: { model: string; basecolor?: string } = manifest.floor
-export const PIECES = manifest.pieces
+
+export type Piece = {
+  id: string
+  url: string
+  /** `false` for flat markers (glow discs, compass) that must not cast shadows; everything else does. */
+  shadow?: boolean
+}
+
+export const PIECES: Piece[] = manifest.pieces
 
 export const ALL_PUBLIC_FILES: string[] = [
   FLOOR.model,

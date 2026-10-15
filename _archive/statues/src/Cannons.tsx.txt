@@ -1,0 +1,115 @@
+import { fx } from '../timeline/fxTime'
+import { useGLTF } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { useLayoutEffect, useMemo, useRef } from 'react'
+import { Vector3, type Object3D } from 'three'
+import type { Vec3 } from '../camera/math'
+import { MAX_FRAME_DT } from '../camera/math'
+import { clock } from '../timeline/clock'
+import { EVENTS } from '../timeline/events'
+import { unitPosition } from '../timeline/model'
+import { GUN_UNIT, gunAims, muzzleKey } from './gunFire'
+import { marchesOf } from './marchShared'
+import { DRACO_PATH } from './sceneAssets'
+import { shadowDirty } from './shadowDirty'
+import { bearing, dampAngle, gunAim, headingAt, yawToFace, type Aim } from './troopPose'
+import { useBoard } from './useBoard'
+import { useHeightField } from './useHeightField'
+
+/** The three cannons (of five) that follow Ángeles' unit to Cerro de Loreto; the other two stay at Vetagrande. */
+const MOVERS = ['Piece_Vetagrande_Cannon_01', 'Piece_Vetagrande_Cannon_02', 'Piece_Vetagrande_Cannon_03']
+const UNIT = GUN_UNIT
+/** While they roll, the guns hop this high (world units) and this fast (radians per second). */
+const HOP = 1.6
+const HOP_RATE = 9
+/** How fast a gun turns to its target (e-folds per second). */
+const TURN_RATE = 5
+/**
+ * The mouth of the barrel in the cannon's own units (the model is a box of about ±0.5, scaled 60.8, with the barrel along +z):
+ * the middle of the vertices at its front end. The angle of that front in the model's frame is 0 (`bearing(0, 1)`).
+ */
+const MUZZLE = [0, 0.216, 0.486] as const
+const FRONT = 0
+
+/**
+ * The mouths of the guns that are firing, by the unit and the place they fire on (`muzzleKey`), in world coordinates. The shells and the
+ * muzzle flashes of an attack on a place leave from these (see `Arrow`). The arrays are refilled in place every frame, so they can be held on to.
+ */
+export const GUN_MUZZLES: Record<string, Vec3[]> = {}
+
+type Gun = { node: Object3D; base: Vec3; mover: boolean; aims: Aim[]; yaw: number; lastYaw: number }
+
+/**
+ * The Vetagrande cannons, as exported, except that they turn to the place they fire on, and three of them roll along Ángeles' march
+ * to Cerro de Loreto (in a straight line, keeping their spacing, hopping a little as they go) and then stand there. When several places
+ * are fired on at once the guns share them out; the two that stay fire from Vetagrande all day, on what the others fire on until they
+ * set off and then on La Bufa, as the `angeles-rear` unit (see `gunAims`).
+ */
+export function Cannons({ url }: { url: string }) {
+  const { scene } = useGLTF(url, DRACO_PATH)
+  const board = useBoard()
+  const ground = useHeightField()
+  const marches = useMemo(() => marchesOf(board).filter((m) => m.unit === UNIT), [board])
+  const guns = useMemo<Gun[]>(() => {
+    const setOff = Math.min(...marches.map((m) => m.start))
+    const { movers: moverAims, stayers: stayerAims } = gunAims(EVENTS, (id) => board.places.get(id)!, setOff)
+    return scene.children
+      .filter((o) => o.name.startsWith('Piece_Vetagrande_Cannon'))
+      .map((node) => {
+        // Where the cannon was baked, read once before it is first moved (kept on the node: a hot reload must not read a moved one).
+        const [x, y, z] = (node.userData.base ??= node.position.toArray()) as [number, number, number]
+        const mover = MOVERS.includes(node.name)
+        return { node, base: { x, y, z }, mover, aims: mover ? moverAims : stayerAims, yaw: NaN, lastYaw: NaN }
+      })
+  }, [scene, board, marches])
+  const last = useRef({ dx: NaN, dz: NaN })
+  const mouth = useMemo(() => new Vector3(), [])
+
+  useLayoutEffect(() => {
+    scene.traverse((o) => {
+      o.castShadow = true
+      o.receiveShadow = true
+    })
+    return () => {
+      for (const muzzles of Object.values(GUN_MUZZLES)) muzzles.length = 0
+    }
+  }, [scene])
+
+  useFrame((state, delta) => {
+    const t = clock.time
+    const dt = Math.min(delta, MAX_FRAME_DT)
+    const start = board.places.get('angeles-guns')!
+    const at = unitPosition(start, marches, UNIT, t)
+    const dx = at.x - start.x, dz = at.z - start.z
+    const rolling = marches.some((m) => t > m.start && t < m.end)
+    const hop = rolling ? Math.abs(Math.sin(fx.time * HOP_RATE)) * HOP : 0
+    // The shadow map is drawn again when the guns have moved or turned (see `ShadowSync`).
+    let changed = dx !== last.current.dx || dz !== last.current.dz || hop > 0
+    last.current.dx = dx
+    last.current.dz = dz
+    for (const muzzles of Object.values(GUN_MUZZLES)) muzzles.length = 0
+    guns.forEach((g, slot) => {
+      const { node } = g
+      if (g.mover) {
+        const x = g.base.x + dx, z = g.base.z + dz
+        node.position.set(x, g.base.y + ground(x, z) - ground(g.base.x, g.base.z) + hop, z)
+      }
+      // A gun on the march points the way it goes; otherwise at the place it fires on (or last fired on, or will fire on first).
+      const aim = gunAim(g.aims, t, slot)
+      const heading = g.mover && rolling ? headingAt(marches, [], t, at) : aim && { x: aim.x - node.position.x, z: aim.z - node.position.z }
+      const want = heading ? yawToFace(bearing(heading.x, heading.z), FRONT) : 0
+      g.yaw = Number.isNaN(g.yaw) ? want : dampAngle(g.yaw, want, TURN_RATE, dt)
+      if (Math.abs(g.yaw - g.lastYaw) > 0.002 || Number.isNaN(g.lastYaw)) changed = true
+      g.lastYaw = g.yaw
+      node.rotation.set(0, g.yaw, 0)
+      node.updateMatrix()
+      if (aim && t >= aim.from && t <= aim.to) {
+        mouth.set(MUZZLE[0], MUZZLE[1], MUZZLE[2]).applyMatrix4(node.matrix)
+        ;(GUN_MUZZLES[muzzleKey(aim.unit!, aim.target!)] ??= []).push({ x: mouth.x, y: mouth.y, z: mouth.z })
+      }
+    })
+    if (changed) shadowDirty.mark()
+  })
+
+  return <primitive object={scene} />
+}

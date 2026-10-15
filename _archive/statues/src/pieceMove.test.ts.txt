@@ -1,0 +1,42 @@
+import { describe, expect, it } from 'vitest'
+import { BoxGeometry, Group, Mesh } from 'three'
+import { bakedBounds, moveToPlace } from './pieceMove'
+
+describe('moveToPlace', () => {
+  const baked = { minX: -726, maxX: -624, minY: 4, minZ: 224, maxZ: 266 }
+
+  it('puts the middle of the piece over the place, in x and z', () => {
+    const d = moveToPlace(baked, { x: -623, y: 2, z: -197 })
+    expect((baked.minX + baked.maxX) / 2 + d.x).toBeCloseTo(-623)
+    expect((baked.minZ + baked.maxZ) / 2 + d.z).toBeCloseTo(-197)
+  })
+  it("sets the piece's underside on the ground of the new place", () => {
+    const d = moveToPlace(baked, { x: -623, y: 2, z: -197 })
+    expect(baked.minY + d.y).toBeCloseTo(2)
+  })
+  it('does not move a piece that already stands on the place', () => {
+    const d = moveToPlace(baked, { x: -675, y: 4, z: 245 })
+    expect(d).toEqual({ x: 0, y: 0, z: 0 })
+  })
+})
+
+describe('bakedBounds', () => {
+  const piece = () => {
+    const scene = new Group()
+    const mesh = new Mesh(new BoxGeometry(20, 10, 40)) // x -10..10, y -5..5, z -20..20 before its own placement
+    mesh.position.set(100, 5, 200)
+    scene.add(mesh)
+    return scene
+  }
+  it('measures the piece where it was baked', () => {
+    const b = bakedBounds(piece())
+    expect(b).toEqual({ minX: 90, maxX: 110, minY: 0, minZ: 180, maxZ: 220 })
+  })
+  it('gives the same answer after the piece has been moved by a group it hangs in', () => {
+    const scene = piece()
+    const parent = new Group()
+    parent.position.set(-300, 7, 50)
+    parent.add(scene)
+    expect(bakedBounds(scene)).toEqual({ minX: 90, maxX: 110, minY: 0, minZ: 180, maxZ: 220 })
+  })
+})

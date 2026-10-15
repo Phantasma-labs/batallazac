@@ -1,0 +1,15 @@
+/* The name of a unit, under its force: a smaller sibling of the ground labels, dark and opaque so it reads on any ground. */
+.unit-label {
+  padding: 2px 9px 3px 8px;
+  white-space: nowrap;
+  font: 700 11.5px/1.25 var(--serif, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif);
+  letter-spacing: 0.06em;
+  color: #fff8e6;
+  background: #1d140c;
+  border: 1px solid rgba(251, 240, 207, 0.85);
+  border-left: 6px solid var(--lane, #f2b441);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  user-select: none;
+}

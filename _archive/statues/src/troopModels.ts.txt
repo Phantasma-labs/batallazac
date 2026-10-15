@@ -1,0 +1,62 @@
+/**
+ * The soldier statues that walk and fire: which model each unit of the timeline is, and where on the model its rifles end.
+ * The models are `soldiers_villista.glb` (one node: three villistas on the march) and `soldiers_federal.glb` (three nodes, one
+ * group of three kneeling riflemen each); every node is a group of three soldiers that moves as one. Units beyond the baked nodes
+ * (Villa's soldiers, the federals of La Sierpe) get a copy of the model's template.
+ */
+
+export type TroopModel = 'villista' | 'federal'
+
+export type TroopSpec = {
+  /** The id in assets.json of the file the model comes from. */
+  piece: string
+  /** The baked node that is copied when a unit has no node of its own (Villa's soldiers: a second group of villistas). */
+  template: string
+  /**
+   * The angle (`atan2(x, z)` of the direction, see `bearing`) the soldiers face in the model's own frame, with no turn applied: the
+   * villistas walk toward the top of their frame (north, a little east), the federals aim their rifles to the north-east.
+   */
+  front: number
+  /** The rifles' muzzles, one per soldier, in the model's own units (a box of about ±0.5, y up): found by casting rays at the tips from above. */
+  muzzles: readonly (readonly [number, number, number])[]
+}
+
+export const TROOP_MODELS: Record<TroopModel, TroopSpec> = {
+  villista: {
+    piece: 'soldiers-villista',
+    template: 'Soldiers_Villista_ElGrillo_Assault',
+    front: (165 * Math.PI) / 180,
+    muzzles: [
+      [0.173, 0.11, -0.485],
+      [0.313, 0.019, -0.202],
+      [0.117, -0.167, 0.415],
+    ],
+  },
+  federal: {
+    piece: 'soldiers-federal',
+    template: 'Soldiers_Federal_LaBufa',
+    front: (140 * Math.PI) / 180,
+    muzzles: [
+      [0.281, -0.011, -0.493],
+      [0.355, 0.225, -0.264],
+      [0.279, 0.179, -0.119],
+    ],
+  },
+}
+
+export type Troop = {
+  /** The unit of the timeline (events.ts) whose position the group follows. */
+  unit: string
+  model: TroopModel
+  /** The baked node that is the group, or the name a copy of the model's template is given. */
+  node: string
+}
+
+export const TROOPS: readonly Troop[] = [
+  { unit: 'natera', model: 'villista', node: 'Soldiers_Villista_ElGrillo_Assault' },
+  { unit: 'villa', model: 'villista', node: 'Soldiers_Villista_Villa' },
+  { unit: 'fed-sierpe', model: 'federal', node: 'Soldiers_Federal_Sierpe' },
+  { unit: 'fed-grillo', model: 'federal', node: 'Soldiers_Federal_ElGrillo' },
+  { unit: 'fed-center', model: 'federal', node: 'Soldiers_Federal_Cathedral' },
+  { unit: 'fed-bufa', model: 'federal', node: 'Soldiers_Federal_LaBufa' },
+]

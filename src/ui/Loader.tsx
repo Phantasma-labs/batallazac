@@ -1,4 +1,5 @@
 import { useProgress } from '@react-three/drei'
+import { t } from '../i18n'
 
 export function Loader() {
   const { progress } = useProgress()
@@ -11,7 +12,7 @@ export function Loader() {
         background: '#d9cdb4', color: '#3b3224', font: '16px/1.4 system-ui, sans-serif',
       }}
     >
-      Loading the battlefield… {Math.round(progress)}%
+      {t('Cargando el campo de batalla…', 'Loading the battlefield…')} {Math.round(progress)}%
     </div>
   )
 }

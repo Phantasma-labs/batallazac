@@ -1,0 +1,22 @@
+/**
+ * The shadow map is rendered once (see `Lighting`: the statues are heavy meshes), so anything that moves has to ask for it to be
+ * rendered again: the soldiers and guns call `mark()` in every frame in which they moved, and `ShadowSync` renders the map again, at most
+ * every `SHADOW_INTERVAL` seconds, whenever something has been marked since the last time.
+ */
+let dirty = false
+
+export const shadowDirty = {
+  /** Something that casts a shadow moved. */
+  mark() {
+    dirty = true
+  },
+  /** True once after each `mark()`. */
+  take(): boolean {
+    const was = dirty
+    dirty = false
+    return was
+  },
+}
+
+/** Seconds between two renders of the shadow map while things move: a shadow that trails a statue by a tenth of a second is not seen. */
+export const SHADOW_INTERVAL = 0.1

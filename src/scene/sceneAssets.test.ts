@@ -14,6 +14,11 @@ describe('scene asset manifest', () => {
     expect(missing).toEqual([])
   })
 
+  it('draws only flat markers: the glow discs and the compass, none of which cast shadows', () => {
+    expect(PIECES.map((p) => p.id).sort()).toEqual(['compass', 'glows'])
+    for (const p of PIECES) expect(p.shadow, p.id).toBe(false)
+  })
+
   it('has unique piece ids and urls', () => {
     expect(new Set(PIECES.map((p) => p.id)).size).toBe(PIECES.length)
     expect(new Set(PIECES.map((p) => p.url)).size).toBe(PIECES.length)

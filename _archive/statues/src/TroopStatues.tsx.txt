@@ -1,0 +1,198 @@
+import { fx } from '../timeline/fxTime'
+import { useGLTF } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { useEffect, useLayoutEffect, useMemo } from 'react'
+import { Group, Vector3, type Object3D, type PerspectiveCamera } from 'three'
+import type { Vec3 } from '../camera/math'
+import { MAX_FRAME_DT } from '../camera/math'
+import { clock } from '../timeline/clock'
+import { EVENTS, UNITS } from '../timeline/events'
+import { unitPosition, type ResolvedMarch } from '../timeline/model'
+import { flashTexture } from './effectTextures'
+import { rifleFlash, seedOf } from './impactEffect'
+import { marchesOf, stopPoint } from './marchShared'
+import { DRACO_PATH, PIECES } from './sceneAssets'
+import { worldPerPixel } from './screenScale'
+import { soft, type Soft } from './softSprite'
+import { TROOPS, TROOP_MODELS, type TroopModel, type TroopSpec } from './troopModels'
+import { aimAt, bearing, dampAngle, headingAt, marchRock, yawToFace, type Aim } from './troopPose'
+import { useBoard } from './useBoard'
+import { shadowDirty } from './shadowDirty'
+import { useHeightField } from './useHeightField'
+
+/** The order the models are loaded in (see `scenes`). */
+const MODELS: TroopModel[] = ['villista', 'federal']
+const URLS = MODELS.map((model) => PIECES.find((p) => p.id === TROOP_MODELS[model].piece)!.url)
+
+/** The muzzle flashes are drawn over the statues (see `soft`): this many world units nearer the camera than the rifle they come from. */
+const FLASH_PUSH = -7
+/** A muzzle flash sprite's width on screen (pixels on a 768 px high view; the bright core is about a fifth of it), and the least it measures in world units. */
+const FLASH_PIXELS = 44
+const FLASH_MIN = 7
+/** How fast a group turns to face a new way: it closes this fraction (e-folds per second) of the gap. */
+const TURN_RATE = 6
+
+type TroopGroup = {
+  unit: string
+  index: number
+  spec: TroopSpec
+  node: Object3D
+  start: Vec3
+  marches: ResolvedMarch[]
+  aims: Aim[]
+  /** How far the node's origin stands above the ground, as baked: the statue's own planting. */
+  lift: number
+  /** The way the statue was baked to face, for a unit with nothing to turn toward. */
+  baseYaw: number
+  yaw: number
+  /** Where the node stood in the last frame, to know when its shadow has to be drawn again. */
+  lastX: number
+  lastZ: number
+  lastYaw: number
+  /** 0 standing .. 1 marching: eased, and kept at 0 while the clock is paused. */
+  walk: number
+  seed: number
+  flashes: Soft[]
+}
+
+type Base = { lift: number; yaw: number }
+/**
+ * How a statue was baked: how far its origin stands above the terrain (its planting) and the way it faces. Read once, before the
+ * node is first moved, and kept on the node (so a copy inherits it, and a hot reload or a second render does not read a moved node).
+ */
+function baseOf(node: Object3D, ground: (x: number, z: number) => number): Base {
+  return (node.userData.troopBase ??= {
+    lift: node.position.y - ground(node.position.x, node.position.z),
+    yaw: 2 * Math.atan2(node.quaternion.y, node.quaternion.w),
+  })
+}
+
+/**
+ * The soldier statues of the timeline: Natera's and Villa's villistas and the three federal groups, each a node of its GLB that
+ * walks with its unit along the unit's marches (a hop at its pace and a slight sway), turns to face the way it goes or the place it
+ * fires on, and sparkles with muzzle flashes at its rifles while the unit has an attack on. Nothing is stored between frames but
+ * the smoothing of turns, so scrubbing the clock puts every group where it belongs. Villa's group is a copy of the villista model.
+ */
+export function TroopStatues() {
+  const board = useBoard()
+  const ground = useHeightField()
+  const gltfs = useGLTF(URLS, DRACO_PATH)
+  const scenes = useMemo<Record<TroopModel, Object3D>>(() => ({ villista: gltfs[0].scene, federal: gltfs[1].scene }), [gltfs])
+
+  const { groups, flashRoot } = useMemo(() => {
+    const marches = marchesOf(board)
+    const root = new Group()
+    const list: TroopGroup[] = TROOPS.map((cfg, index) => {
+      const spec = TROOP_MODELS[cfg.model]
+      const scene = scenes[cfg.model]
+      const template = scene.getObjectByName(spec.template)
+      if (!template) throw new Error(`no node "${spec.template}" in ${spec.piece}`)
+      let node = scene.getObjectByName(cfg.node)
+      if (!node) {
+        // A copy of the model's template: it stands as the template was planted, until its unit moves it.
+        baseOf(template, ground)
+        node = template.clone()
+        node.name = cfg.node
+        scene.add(node)
+      }
+      const { lift, yaw: baseYaw } = baseOf(node, ground)
+      const unit = UNITS.find((u) => u.id === cfg.unit)!
+      const aims: Aim[] = EVENTS.flatMap((e) =>
+        (e.attacks ?? [])
+          .filter((a) => a.unit === cfg.unit)
+          .map((a) => {
+            const p = board.places.get(a.target)!
+            return { from: a.startTime ?? e.time, to: a.endTime, x: p.x, z: p.z }
+          }),
+      )
+      const flashes = spec.muzzles.map(() => soft(flashTexture(), 7))
+      flashes.forEach((f) => {
+        f.push.value = FLASH_PUSH
+        root.add(f.sprite)
+      })
+      return {
+        unit: cfg.unit,
+        index,
+        spec,
+        node,
+        start: stopPoint(unit.start, board.places),
+        marches: marches.filter((m) => m.unit === cfg.unit),
+        aims,
+        lift,
+        baseYaw,
+        yaw: NaN,
+        lastX: NaN,
+        lastZ: NaN,
+        lastYaw: NaN,
+        walk: 0,
+        seed: seedOf(`troop>${cfg.unit}`),
+        flashes,
+      }
+    })
+    return { groups: list, flashRoot: root }
+  }, [board, ground, scenes])
+
+  useLayoutEffect(() => {
+    for (const scene of Object.values(scenes)) {
+      scene.traverse((o) => {
+        o.castShadow = true
+        o.receiveShadow = true
+      })
+    }
+  }, [scenes, groups])
+  useEffect(
+    () => () => {
+      for (const g of groups) for (const f of g.flashes) f.sprite.material.dispose()
+    },
+    [groups],
+  )
+
+  const muzzle = useMemo(() => new Vector3(), [])
+  useFrame((state, delta) => {
+    const t = clock.time
+    const dt = Math.min(delta, MAX_FRAME_DT)
+    const elapsed = fx.time
+    const camera = state.camera as PerspectiveCamera
+    const height = state.size.height
+    for (const g of groups) {
+      const at = unitPosition(g.start, g.marches, g.unit, t)
+      const walking = g.marches.some((m) => t >= m.start && t < m.end)
+      g.walk += ((walking && clock.playing ? 1 : 0) - g.walk) * (1 - Math.exp(-8 * dt))
+      const heading = headingAt(g.marches, g.aims, t, at)
+      const want = heading ? yawToFace(bearing(heading.x, heading.z), g.spec.front) : g.baseYaw
+      g.yaw = Number.isNaN(g.yaw) ? want : dampAngle(g.yaw, want, TURN_RATE, dt)
+      const rock = marchRock(elapsed, g.index, g.walk)
+      g.node.position.set(at.x, ground(at.x, at.z) + g.lift + rock.hop, at.z)
+      g.node.rotation.set(rock.pitch, g.yaw, rock.roll, 'YXZ')
+      g.node.updateMatrix()
+      if (g.walk > 0.01 || Math.abs(at.x - g.lastX) > 0.02 || Math.abs(at.z - g.lastZ) > 0.02 || Math.abs(g.yaw - g.lastYaw) > 0.002 || Number.isNaN(g.lastX)) shadowDirty.mark()
+      g.lastX = at.x
+      g.lastZ = at.z
+      g.lastYaw = g.yaw
+
+      // Each soldier fires on his own beat while the unit has an attack on.
+      const firing = aimAt(g.aims, t) !== null
+      g.spec.muzzles.forEach((m, k) => {
+        const flash = g.flashes[k]
+        const level = firing ? rifleFlash(k, elapsed, g.seed) : 0
+        flash.sprite.visible = level > 0.02
+        if (!flash.sprite.visible) return
+        muzzle.set(m[0], m[1], m[2]).applyMatrix4(g.node.matrix)
+        flash.sprite.position.copy(muzzle)
+        const size = Math.max(worldPerPixel(camera, muzzle, height) * FLASH_PIXELS * (height / 768), FLASH_MIN)
+        flash.sprite.scale.setScalar(size * (0.7 + 0.5 * level))
+        flash.sprite.material.opacity = Math.min(level * 1.3, 1)
+        flash.sprite.material.rotation = Math.floor(elapsed * 9 + k * 2.1) * 1.7
+      })
+    }
+  })
+
+  return (
+    <>
+      {MODELS.map((m) => (
+        <primitive key={m} object={scenes[m]} />
+      ))}
+      <primitive object={flashRoot} />
+    </>
+  )
+}

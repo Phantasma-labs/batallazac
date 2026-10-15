@@ -1,0 +1,444 @@
+import { Euler, Vector3 } from 'three'
+import { describe, expect, it } from 'vitest'
+import { unitPosition } from '../timeline/model'
+import { BAR, CHEVRON, EDGE, FORM, GUN, LINE_GAP, PITCH, SEG_PITCH, attackingAt, blendOf, chevronXs, columnSnake, dampAngle, extentOf, facingAt, fitRank, flicker, frontMid, frontRipple, hash01, layoutOf, makeUnitTrack, makeWalk, mixSlot, newUnitState, reachOf, sampleWalk, slotReach, standoffAt, standoffScale, stepBob, unitStateAt, yawOf, type Aim, type Piece, type Slot } from './formation'
+
+const p = (x: number, z: number, y = 0) => ({ x, y, z })
+const east = [p(0, 0), p(50, 0), p(100, 0)]
+const march = (start: number, end: number, path = east) => ({ unit: 'u', start, end, path })
+
+describe('walks', () => {
+  it('samples a point and the direction of the segment it is on', () => {
+    const w = makeWalk(march(0, 10, [p(0, 0), p(0, 100, 10)]))
+    const s = newUnitState()
+    sampleWalk(w, 0.5, s)
+    expect(s.z).toBeCloseTo(50)
+    expect(s.y).toBeCloseTo(5)
+    expect(s.hx).toBeCloseTo(0)
+    expect(s.hz).toBeCloseTo(1)
+  })
+  it('turns with the path', () => {
+    const w = makeWalk(march(0, 10, [p(0, 0), p(100, 0), p(100, 100)]))
+    const s = newUnitState()
+    expect(sampleWalk(w, 0.2, s).hx).toBeCloseTo(1)
+    expect(sampleWalk(w, 0.8, s).hz).toBeCloseTo(1)
+  })
+  it('survives a one-point path', () => {
+    const w = makeWalk(march(0, 10, [p(3, 4)]))
+    const s = newUnitState()
+    expect(sampleWalk(w, 0.5, s).x).toBe(3)
+  })
+})
+
+describe('where a unit stands', () => {
+  const track = makeUnitTrack(p(0, 0), [march(100, 200, east), march(300, 400, [p(100, 0), p(100, 80)])])
+  const at = (t: number) => unitStateAt(track, t, newUnitState())
+
+  it('agrees with unitPosition before, during and between marches', () => {
+    const marches = [march(100, 200), march(300, 400, [p(100, 0), p(100, 80)])]
+    for (const t of [0, 99, 100, 150, 199, 200, 250, 300, 350, 400, 999]) {
+      const a = at(t)
+      const b = unitPosition(p(0, 0), marches, 'u', t)
+      expect([a.x, a.y, a.z]).toEqual([b.x, b.y, b.z].map((v) => expect.closeTo(v, 6)))
+    }
+  })
+  it('knows when it walks and whether it has moved yet', () => {
+    expect(at(50)).toMatchObject({ walking: false, moved: false })
+    expect(at(150)).toMatchObject({ walking: true, moved: true })
+    expect(at(250)).toMatchObject({ walking: false, moved: true })
+    expect(at(350).walking).toBe(true)
+  })
+  it('orders marches by time', () => {
+    const t = makeUnitTrack(p(0, 0), [march(300, 400), march(100, 200)])
+    expect(t.walks.map((w) => w.start)).toEqual([100, 300])
+  })
+})
+
+describe('facing', () => {
+  const track = makeUnitTrack(p(0, 0), [march(100, 200, east), march(300, 400, [p(100, 0), p(100, 80)])])
+  const face = (t: number, aims: Aim[] = []) => {
+    const st = unitStateAt(track, t, newUnitState())
+    const out = { x: 0, z: 0 }
+    facingAt(track, aims, t, st, out)
+    return out
+  }
+
+  it('faces the direction of travel while walking', () => {
+    expect(face(150)).toEqual({ x: 1, z: 0 })
+    expect(face(350).z).toBeCloseTo(1)
+  })
+  it('faces its first march before it starts', () => {
+    expect(face(0)).toEqual({ x: 1, z: 0 })
+  })
+  it('keeps its last heading between marches', () => {
+    expect(face(250)).toEqual({ x: 1, z: 0 })
+    expect(face(999).z).toBeCloseTo(1)
+  })
+  it('faces its target while it attacks, then goes back to its heading', () => {
+    const aims: Aim[] = [{ from: 0, to: 60, x: 0, z: 200 }]
+    expect(face(30, aims).z).toBeCloseTo(1)
+    expect(face(30, aims).x).toBeCloseTo(0)
+    expect(face(80, aims)).toEqual({ x: 1, z: 0 })
+  })
+  it('does not turn to a target it stands on', () => {
+    const aims: Aim[] = [{ from: 210, to: 290, x: 100, z: 10 }]
+    expect(face(250, aims)).toEqual({ x: 1, z: 0 })
+  })
+  it('takes the first attack when it has several', () => {
+    const aims: Aim[] = [{ from: 0, to: 90, x: 0, z: 100 }, { from: 0, to: 90, x: 100, z: 0 }]
+    expect(face(10, aims).z).toBeCloseTo(1)
+  })
+  it('faces somewhere with no marches at all', () => {
+    const none = makeUnitTrack(p(0, 0), [])
+    const out = { x: 0, z: 0 }
+    facingAt(none, [], 5, unitStateAt(none, 5, newUnitState()), out)
+    expect(Math.hypot(out.x, out.z)).toBeCloseTo(1)
+  })
+})
+
+describe('angles', () => {
+  it('yaw turns +X onto the heading', () => {
+    for (const [dx, dz] of [[1, 0], [0, 1], [-1, 0], [0, -1], [0.6, -0.8]]) {
+      const v = new Vector3(1, 0, 0).applyEuler(new Euler(0, yawOf(dx, dz), 0))
+      expect(v.x).toBeCloseTo(dx)
+      expect(v.z).toBeCloseTo(dz)
+    }
+  })
+  it('turns the short way round and eases toward the target', () => {
+    const a = dampAngle(3, -3, 0.05) // -3 is a small step past pi, not a long way back
+    expect(a).toBeGreaterThan(3)
+    expect(dampAngle(0, 1, 0)).toBe(0)
+    expect(dampAngle(0, 1, 100)).toBeCloseTo(1)
+    expect(dampAngle(0, 1, 0.1)).toBeGreaterThan(0)
+    expect(dampAngle(0, 1, 0.1)).toBeLessThan(1)
+  })
+})
+
+describe('resting on the ground', () => {
+  const pose = (ground: (x: number, z: number) => number, dx: number, dz: number) => fitRank(ground, 10, 20, dx, dz, 4, 8, { y: 0, pitch: 0, roll: 0 })
+
+  it('lies flat on flat ground', () => {
+    expect(pose(() => 5, 1, 0)).toEqual({ y: 5, pitch: 0, roll: 0 })
+  })
+  it('tilts nose up going uphill', () => {
+    const up = pose((x) => 0.5 * x, 1, 0)
+    expect(up.pitch).toBeCloseTo(Math.atan(0.5))
+    expect(up.roll).toBeCloseTo(0)
+    const forward = new Vector3(1, 0, 0).applyEuler(new Euler(up.roll, 0, up.pitch))
+    expect(forward.y).toBeGreaterThan(0)
+  })
+  it('rolls so its right side meets a rising ground', () => {
+    const slope = pose((_x, z) => 0.3 * z, 1, 0) // facing +x: the block's +Z is world +Z
+    const right = new Vector3(0, 0, 1).applyEuler(new Euler(slope.roll, 0, slope.pitch))
+    expect(right.y / Math.hypot(right.y, right.z)).toBeCloseTo(0.3 / Math.hypot(1, 0.3))
+  })
+  it('follows the heading when it points elsewhere', () => {
+    // Facing +z over ground that only rises with x: that is a roll, not a pitch.
+    const across = pose((x) => 0.5 * x, 0, 1)
+    expect(across.pitch).toBeCloseTo(0)
+    expect(Math.abs(across.roll)).toBeCloseTo(Math.atan(0.5))
+    const right = new Vector3(0, 0, 1).applyEuler(new Euler(across.roll, 0, across.pitch))
+    // facing +z, the block's own +Z is world -x, where the ground is lower
+    expect(right.y).toBeLessThan(0)
+  })
+})
+
+describe('layout', () => {
+  it('deploys infantry as three staggered lines across the front, sixteen bars', () => {
+    const p = layoutOf('villa')
+    expect(p).toHaveLength(16)
+    expect(p.every((q) => q.kind === 'bar')).toBe(true)
+    const front = p.filter((q) => q.front.x === 0)
+    const second = p.filter((q) => q.front.x < 0 && q.front.x > -1.5 * LINE_GAP)
+    expect(front).toHaveLength(7)
+    expect(second).toHaveLength(6)
+    expect(p.filter((q) => q.front.x < -1.5 * LINE_GAP)).toHaveLength(3)
+    // The second line sits in the gaps of the front one.
+    const zs = front.map((q) => q.front.z)
+    for (const q of second) expect(zs.some((z) => Math.abs(z - q.front.z) < 1e-9)).toBe(false)
+    expect(front.some((q) => Math.abs(q.front.z) < 1e-9)).toBe(true) // a bar in the middle of the front
+  })
+  it('makes the federal army infantry too, the same bars as the División del Norte', () => {
+    expect(layoutOf('federal')).toEqual(layoutOf('villa'))
+  })
+  it('deploys artillery as a spaced line of guns with caissons behind', () => {
+    const p = layoutOf('angeles')
+    expect(p.filter((q) => q.kind === 'gun')).toHaveLength(7)
+    const caissons = p.filter((q) => q.kind === 'bar')
+    expect(caissons).toHaveLength(6)
+    for (const c of caissons) expect(c.front.x).toBeLessThan(-(GUN.depth / 2 + EDGE))
+    const guns = p.filter((q) => q.kind === 'gun')
+    expect(Math.min(...guns.map((g) => g.front.z))).toBeCloseTo(-Math.max(...guns.map((g) => g.front.z)))
+  })
+  it('turns every piece a little, never far from square to the march, when deployed', () => {
+    for (const track of ['villa', 'angeles'] as const) {
+      const p = layoutOf(track)
+      expect(p.every((q) => Math.abs(q.front.yaw) <= 0.07)).toBe(true)
+      expect(new Set(p.map((q) => q.front.yaw.toFixed(3))).size).toBeGreaterThan(p.length / 2)
+    }
+  })
+  it('keeps the bars of a line apart', () => {
+    for (const track of ['villa', 'angeles'] as const) {
+      const p = layoutOf(track)
+      for (const a of p) {
+        for (const b of p) {
+          if (a === b || a.front.x !== b.front.x) continue
+          const gap = Math.abs(a.front.z - b.front.z) - (reachOf(a.kind).side * a.front.s + reachOf(b.kind).side * b.front.s)
+          expect(gap).toBeGreaterThan(0)
+        }
+      }
+    }
+  })
+  it('covers about 120 to 220 pixels across when deployed at the wide shot', () => {
+    for (const track of ['villa', 'angeles'] as const) {
+      const width = Math.max(...layoutOf(track).map((p) => Math.abs(p.front.z) + slotReach(p.kind, p.front).side)) * 2
+      expect(width * FORM.pixelsPerUnit).toBeGreaterThan(120)
+      expect(width * FORM.pixelsPerUnit).toBeLessThan(220)
+    }
+  })
+  it('puts the chevron clear of the lead pieces in both shapes and counts it in the reach', () => {
+    for (const track of ['villa', 'angeles'] as const) {
+      const heads = chevronXs(track)
+      for (const shape of ['front', 'column'] as const) {
+        const lead = Math.max(...layoutOf(track).filter((p) => p[shape].s > 0).map((p) => p[shape].x + slotReach(p.kind, p[shape]).front))
+        expect(heads[shape] - CHEVRON.len / 2).toBeGreaterThan(lead)
+      }
+      expect(extentOf(track).front).toBeGreaterThan(Math.max(heads.front, heads.column) + CHEVRON.len / 2)
+    }
+  })
+})
+
+describe('the column', () => {
+  const lengthOf = (track: 'villa' | 'angeles') => {
+    const heads = chevronXs(track)
+    const back = Math.max(...layoutOf(track).filter((p) => p.column.s > 0).map((p) => -p.column.x + slotReach(p.kind, p.column).back))
+    return heads.column + CHEVRON.len / 2 + EDGE + back
+  }
+  it('marches in two files of bars end to end for infantry, twelve in view, the rest out of sight', () => {
+    const p = layoutOf('villa')
+    const seen = p.filter((q) => q.column.s > 0)
+    expect(seen).toHaveLength(12)
+    expect(p.filter((q) => q.column.s === 0)).toHaveLength(4)
+    expect(new Set(seen.map((q) => q.column.z)).size).toBe(2)
+    // Turned to lie along the march, shortened to fit end to end, and never overlapping their neighbours in a file.
+    for (const q of seen) {
+      expect(q.column.yaw).toBeCloseTo(Math.PI / 2)
+      expect(q.column.sz).toBeLessThan(1)
+    }
+    for (const a of seen) {
+      for (const b of seen) {
+        if (a === b || a.column.z !== b.column.z) continue
+        expect(Math.abs(a.column.x - b.column.x)).toBeGreaterThanOrEqual(SEG_PITCH - 1e-6)
+      }
+    }
+  })
+  it('marches artillery as two files of guns facing the way they go, the caissons out of sight', () => {
+    const p = layoutOf('angeles')
+    const guns = p.filter((q) => q.kind === 'gun')
+    expect(guns.every((q) => q.column.s > 0 && q.column.yaw === 0)).toBe(true)
+    expect(new Set(guns.map((q) => q.column.z)).size).toBe(2)
+    expect(p.filter((q) => q.kind === 'bar').every((q) => q.column.s === 0)).toBe(true)
+  })
+  it('is a long bar: much longer than wide, and 100 to 190 pixels from the tip of its chevron to its tail', () => {
+    for (const track of ['villa', 'angeles'] as const) {
+      const length = lengthOf(track)
+      const width = Math.max(...layoutOf(track).filter((p) => p.column.s > 0).map((p) => Math.abs(p.column.z) + slotReach(p.kind, p.column).side)) * 2
+      expect(length).toBeGreaterThan(2.5 * width)
+      expect(length * FORM.pixelsPerUnit).toBeGreaterThan(100)
+      expect(length * FORM.pixelsPerUnit).toBeLessThan(190)
+    }
+  })
+  it('is longer along the march than the deployed front is deep', () => {
+    for (const track of ['villa', 'angeles'] as const) {
+      const p = layoutOf(track)
+      const colBack = Math.max(...p.filter((q) => q.column.s > 0).map((q) => -q.column.x + slotReach(q.kind, q.column).back))
+      const frontBack = Math.max(...p.map((q) => -q.front.x + slotReach(q.kind, q.front).back))
+      expect(colBack).toBeGreaterThan(frontBack * 1.5)
+    }
+  })
+})
+
+describe('changing shape', () => {
+  it('is all column at 0 and all front at 1, each piece in its own time between', () => {
+    expect(blendOf(0, 0)).toBe(0)
+    expect(blendOf(0, 1)).toBe(0)
+    expect(blendOf(1, 0)).toBe(1)
+    expect(blendOf(1, 1)).toBe(1)
+    expect(blendOf(0.4, 0)).toBeGreaterThan(blendOf(0.4, 1))
+    expect(blendOf(0.5, 0.2)).toBeGreaterThan(0)
+    expect(blendOf(0.5, 0.2)).toBeLessThan(1)
+  })
+  it('only ever moves forward as the force deploys', () => {
+    let last = 0
+    for (let d = 0; d <= 1.0001; d += 0.05) {
+      const b = blendOf(d, 0.6)
+      expect(b).toBeGreaterThanOrEqual(last - 1e-12)
+      last = b
+    }
+  })
+  it('mixes a piece from its column place to its front place', () => {
+    const piece = layoutOf('villa')[0]
+    const out = { x: 0, z: 0, s: 0, sz: 0, yaw: 0 }
+    const same = (a: Slot, b: Slot) => (['x', 'z', 's', 'sz', 'yaw'] as const).forEach((k) => expect(a[k]).toBeCloseTo(b[k]))
+    same(mixSlot(piece, 0, out), piece.column)
+    same(mixSlot(piece, 1, out), piece.front)
+    const mid = mixSlot(piece, 0.5, out)
+    expect(mid.x).toBeCloseTo((piece.column.x + piece.front.x) / 2)
+    expect(mid.yaw).toBeCloseTo((piece.column.yaw + piece.front.yaw) / 2)
+  })
+  it('reaches as far as a bar lies along its own axis, turned or not', () => {
+    const across = slotReach('bar', { x: 0, z: 0, s: 1, sz: 1, yaw: 0 })
+    const along = slotReach('bar', { x: 0, z: 0, s: 1, sz: 0.5, yaw: Math.PI / 2 })
+    expect(across.side).toBeCloseTo(BAR.len / 2 + EDGE)
+    expect(across.front).toBeCloseTo(BAR.depth / 2 + EDGE)
+    expect(along.front).toBeCloseTo((BAR.len / 2 + EDGE) * 0.5)
+    expect(along.side).toBeCloseTo(BAR.depth / 2 + EDGE)
+    expect(slotReach('bar', { x: 0, z: 0, s: 0, sz: 1, yaw: 0 }).side).toBe(0)
+  })
+})
+
+describe('standing clear of the place', () => {
+  it('keeps the whole standoff for a long march and less for a short one, never giving up more than its share', () => {
+    const full = FORM.standAhead + FORM.standShort
+    expect(standoffScale(10 * full, 1)).toBe(1)
+    const short = standoffScale(2 * full, 1)
+    expect(short).toBeLessThan(1)
+    expect(short * full).toBeCloseTo(FORM.standShare * 2 * full)
+    expect(standoffScale(2 * full, 2)).toBeCloseTo(standoffScale(full, 1)) // twice as many world units per model unit: half the march in model units
+    expect(standoffScale(0, 1)).toBe(1)
+  })
+  it('scales every state of the standoff alike', () => {
+    const st = (over: Partial<ReturnType<typeof newUnitState>>) => ({ ...newUnitState(), ...over })
+    expect(standoffAt(st({}), 0.5)).toBeCloseTo(FORM.standAhead / 2)
+    expect(standoffAt(st({ moved: true }), 0.5)).toBeCloseTo(-FORM.standShort / 2)
+  })
+  const st = (over: Partial<ReturnType<typeof newUnitState>>) => ({ ...newUnitState(), ...over })
+  it('stands ahead of the starting place before the first march, and short of every place it reaches', () => {
+    expect(standoffAt(st({}))).toBe(FORM.standAhead)
+    expect(standoffAt(st({ moved: true }))).toBe(-FORM.standShort)
+  })
+  it('eases from one to the other along the first march, and stays short on the later ones', () => {
+    const first = (progress: number) => standoffAt(st({ walking: true, moved: true, walkIndex: 0, progress }))
+    expect(first(0)).toBe(FORM.standAhead)
+    expect(first(1)).toBe(-FORM.standShort)
+    expect(first(0.5)).toBeCloseTo((FORM.standAhead - FORM.standShort) / 2)
+    const later = (progress: number) => standoffAt(st({ walking: true, moved: true, walkIndex: 1, progress }))
+    expect(later(0)).toBe(-FORM.standShort)
+    expect(later(0.5)).toBe(-FORM.standShort)
+  })
+  it('does not jump where a march ends and the unit stands', () => {
+    expect(standoffAt(st({ walking: true, moved: true, walkIndex: 0, progress: 1 }))).toBe(standoffAt(st({ moved: true })))
+  })
+})
+
+describe('motion', () => {
+  it('only steps and ripples while walking', () => {
+    expect(stepBob(1.3, 2, 0)).toBe(0)
+    expect(frontRipple(1.3, 40, 0)).toBe(0)
+    expect(stepBob(1.3, 2, 1)).toBeGreaterThanOrEqual(0)
+  })
+  it('steps each piece at its own moment', () => {
+    const at = [0, 1, 2, 3, 4, 5].map((i) => stepBob(0.7, i, 1))
+    expect(new Set(at.map((v) => v.toFixed(3))).size).toBeGreaterThan(4)
+  })
+  it('sways down the column as it walks, and only then', () => {
+    expect(columnSnake(1.1, -40, 0)).toBe(0)
+    expect(columnSnake(1.1, -40, 1)).not.toBeCloseTo(columnSnake(1.1, -90, 1))
+    expect(Math.abs(columnSnake(1.1, -40, 1))).toBeLessThanOrEqual(1.8)
+  })
+  it('ripples across the front, a different push at each place along it', () => {
+    expect(frontRipple(2, -80, 1)).not.toBeCloseTo(frontRipple(2, 80, 1))
+    expect(Math.abs(frontRipple(2, 10, 1))).toBeLessThanOrEqual(1.8)
+  })
+  it('flashes briefly, at each piece its own rhythm, and is off most of the time', () => {
+    let on = 0
+    const seen = new Set<string>()
+    for (let k = 0; k < 600; k++) {
+      const v = flicker(k * 0.02, 3)
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThanOrEqual(1)
+      if (v > 0) on++
+      seen.add(flicker(k * 0.02, 5).toFixed(2))
+    }
+    expect(on).toBeGreaterThan(30)
+    expect(on).toBeLessThan(300)
+    const seq = (i: number) => Array.from({ length: 50 }, (_, k) => flicker(k * 0.05, i).toFixed(2)).join()
+    expect(seq(1)).not.toBe(seq(2))
+    expect(seen.size).toBeGreaterThan(3)
+  })
+  it('hashes to 0..1', () => {
+    for (let i = 0; i < 50; i++) {
+      expect(hash01(i)).toBeGreaterThanOrEqual(0)
+      expect(hash01(i)).toBeLessThan(1)
+    }
+  })
+  it('knows when an attack is on', () => {
+    const aims: Aim[] = [{ from: 100, to: 200, x: 0, z: 0 }, { from: 300, to: 400, x: 0, z: 0 }]
+    expect(attackingAt(aims, 50)).toBe(false)
+    expect(attackingAt(aims, 150)).toBe(true)
+    expect(attackingAt(aims, 250)).toBe(false)
+    expect(attackingAt(aims, 400)).toBe(true)
+  })
+})
+
+describe('the two halves of a battery', () => {
+  const whole = layoutOf('angeles')
+  const movers = layoutOf('angeles', 'movers')
+  const stayers = layoutOf('angeles', 'stayers')
+  const key = (p: Piece) => `${p.kind}@${p.front.x},${p.front.z}`
+
+  it('is the whole between the two halves, with no piece twice: four guns and three caissons go on, three and three stay', () => {
+    expect(movers.length + stayers.length).toBe(whole.length)
+    expect(new Set([...movers, ...stayers].map(key))).toEqual(new Set(whole.map(key)))
+    expect(movers.filter((p) => p.kind === 'gun')).toHaveLength(4)
+    expect(movers.filter((p) => p.kind === 'bar')).toHaveLength(3)
+    expect(stayers.filter((p) => p.kind === 'gun')).toHaveLength(3)
+    expect(stayers.filter((p) => p.kind === 'bar')).toHaveLength(3)
+    // They lie on either side of the middle of the front.
+    expect(Math.max(...movers.map((p) => p.front.z))).toBeLessThanOrEqual(0)
+    expect(Math.min(...stayers.map((p) => p.front.z))).toBeGreaterThan(0)
+  })
+  it('keeps every piece where it stands in the whole, so the two halves together are the battery until one marches off', () => {
+    for (const half of [movers, stayers]) {
+      for (const p of half) {
+        const same = whole.find((w) => key(w) === key(p))!
+        expect(p.front).toEqual(same.front)
+        expect(p.delay).toBe(same.delay)
+      }
+    }
+  })
+  it('gives each half a column of its own: two files of guns, as even as the number of guns allows, led from 0, and no caisson in view', () => {
+    for (const half of [movers, stayers]) {
+      const guns = half.filter((p) => p.kind === 'gun')
+      const left = guns.filter((g) => g.column.z < 0).length
+      expect(Math.abs(left - (guns.length - left))).toBeLessThanOrEqual(1)
+      expect(Math.max(...guns.map((g) => g.column.x))).toBeCloseTo(0, 9)
+      for (const p of half.filter((q) => q.kind === 'bar')) expect(p.column.s).toBe(0)
+    }
+  })
+  it('leaves the whole battery and the infantry as they were: only the artillery divides', () => {
+    expect(layoutOf('angeles', undefined)).toEqual(whole)
+    expect(layoutOf('villa', 'movers')).toEqual(layoutOf('villa'))
+    expect(layoutOf('federal', 'stayers')).toEqual(layoutOf('federal'))
+  })
+  it('puts the middle of the front of the whole at 0, and of each half to its own side', () => {
+    expect(frontMid('angeles')).toBe(0)
+    expect(frontMid('villa')).toBe(0)
+    expect(frontMid('angeles', 'movers')).toBeLessThan(0)
+    expect(frontMid('angeles', 'stayers')).toBeGreaterThan(0)
+    // It is the middle of the guns of the front line.
+    expect(frontMid('angeles', 'movers')).toBeCloseTo((-3 * PITCH.gun + 0) / 2, 9)
+    expect(frontMid('angeles', 'stayers')).toBeCloseTo((1 * PITCH.gun + 3 * PITCH.gun) / 2, 9)
+    expect(extentOf('angeles', 'movers').mid).toBe(frontMid('angeles', 'movers'))
+    expect(extentOf('angeles').mid).toBe(0)
+  })
+  it('has each half reach as far ahead as the whole, its chevron in the same place, and be narrower', () => {
+    for (const half of ['movers', 'stayers'] as const) {
+      // (To a hundredth of a unit: each piece is turned a hair of its own, and the leading one may not be in the half.)
+      expect(chevronXs('angeles', half).front).toBeCloseTo(chevronXs('angeles').front, 2)
+      expect(chevronXs('angeles', half).column).toBeCloseTo(chevronXs('angeles').column, 2)
+      expect(extentOf('angeles', half).front).toBeCloseTo(extentOf('angeles').front, 2)
+      expect(extentOf('angeles', half).side).toBeLessThan(extentOf('angeles').side)
+    }
+  })
+})

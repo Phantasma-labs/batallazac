@@ -1,0 +1,32 @@
+import { describe, expect, it } from 'vitest'
+import { fetchedPieces, propsModeFromSearch } from './props'
+
+describe('props mode', () => {
+  it('is the flat version unless asked for the real statues', () => {
+    expect(propsModeFromSearch('')).toBe('flat')
+    expect(propsModeFromSearch('?props=flat')).toBe('flat')
+    expect(propsModeFromSearch('?props=box')).toBe('flat')
+    expect(propsModeFromSearch('?props=real')).toBe('real')
+    expect(propsModeFromSearch('?cam=free&props=real')).toBe('real')
+  })
+
+  const pieces = [
+    { id: 'cathedral', url: 'models/cathedral.glb', heavy: true },
+    { id: 'cannons', url: 'models/vetagrande_cannons.glb', heavy: true },
+    { id: 'glows', url: 'models/glows.glb', shadow: false },
+    { id: 'light-statue', url: 'models/light.glb' }, // a statue whose retopo is in: its `heavy` mark was taken out
+  ]
+
+  it('fetches every piece in real mode', () => {
+    expect(fetchedPieces(pieces, 'real')).toEqual(pieces)
+  })
+
+  it('fetches, in flat mode, all but the heavy statues', () => {
+    expect(fetchedPieces(pieces, 'flat').map((p) => p.id)).toEqual(['glows', 'light-statue'])
+  })
+
+  it('does not change the list it was given', () => {
+    fetchedPieces(pieces, 'flat')
+    expect(pieces).toHaveLength(4)
+  })
+})

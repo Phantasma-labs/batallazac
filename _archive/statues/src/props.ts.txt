@@ -1,0 +1,16 @@
+export type PropsMode = 'real' | 'flat'
+
+/**
+ * Flat is the main version (the author, 2026-10-13: no 3D models on the map any more). `?props=real` brings the statues back: the
+ * pieces marked `"heavy": true` in assets.json (the six statues) are not fetched and not drawn, and the units, which they were,
+ * are drawn as the formations of bars with a flag and a name chip that they were before the statues (`Force`). Everything
+ * else is as it is, and the whole timeline plays the same.
+ */
+export function propsModeFromSearch(search: string): PropsMode {
+  return new URLSearchParams(search).get('props') === 'real' ? 'real' : 'flat'
+}
+
+/** The pieces to load and draw: all of them, except the heavy statues in flat mode. */
+export function fetchedPieces<T extends { heavy?: boolean }>(pieces: readonly T[], mode: PropsMode): T[] {
+  return pieces.filter((p) => !(mode === 'flat' && p.heavy))
+}

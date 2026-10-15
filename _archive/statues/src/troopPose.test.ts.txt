@@ -1,0 +1,140 @@
+import { describe, expect, it } from 'vitest'
+import type { ResolvedMarch } from '../timeline/model'
+import { aimAt, bearing, dampAngle, gunAim, headingAt, marchRock, pathHeading, wrapPi, yawToFace, type Aim } from './troopPose'
+
+const p = (x: number, z: number) => ({ x, y: 0, z })
+const march = (start: number, end: number, ...pts: [number, number][]): ResolvedMarch => ({ unit: 'u', start, end, path: pts.map(([x, z]) => p(x, z)) })
+
+/** Turning a model by `yaw` about the vertical axis, as three.js does (`rotation.y`), and the bearing of where its front then points. */
+const turned = (front: number, yaw: number) => {
+  const fx = Math.sin(front), fz = Math.cos(front)
+  const x = fx * Math.cos(yaw) + fz * Math.sin(yaw)
+  const z = -fx * Math.sin(yaw) + fz * Math.cos(yaw)
+  return bearing(x, z)
+}
+
+describe('angles', () => {
+  it('wraps into (-π, π]', () => {
+    expect(wrapPi(0)).toBe(0)
+    expect(wrapPi(Math.PI * 3)).toBeCloseTo(Math.PI)
+    expect(wrapPi(-Math.PI * 3)).toBeCloseTo(Math.PI)
+    expect(wrapPi(Math.PI * 2 + 0.5)).toBeCloseTo(0.5)
+    expect(wrapPi(-Math.PI * 2 - 0.5)).toBeCloseTo(-0.5)
+  })
+  it('turns a model so that its front points the way asked, whatever the front was baked as', () => {
+    for (const front of [0, 1, 2.6, -2, Math.PI]) {
+      for (const want of [0, 0.7, -1.9, 3, Math.PI]) {
+        const yaw = yawToFace(want, front)
+        expect(wrapPi(turned(front, yaw) - want), `front ${front}, want ${want}`).toBeCloseTo(0)
+      }
+    }
+  })
+  it('faces south (+z) with a front of 0, east (+x) after a quarter turn', () => {
+    expect(bearing(0, 1)).toBe(0)
+    expect(bearing(1, 0)).toBeCloseTo(Math.PI / 2)
+    expect(bearing(0, -1)).toBeCloseTo(Math.PI)
+  })
+  it('damps toward the target the short way round', () => {
+    expect(dampAngle(0, 1, 6, 0)).toBe(0)
+    expect(dampAngle(0, 1, 6, 10)).toBeCloseTo(1)
+    // From just under π to just over -π is a small turn, not a lap.
+    const a = dampAngle(3, -3, 6, 0.05)
+    expect(Math.abs(wrapPi(a - 3))).toBeLessThan(0.3)
+    expect(Math.abs(a)).toBeGreaterThan(2.9)
+  })
+})
+
+describe('aims', () => {
+  const aims: Aim[] = [
+    { from: 100, to: 200, x: 1, z: 0 },
+    { from: 150, to: 250, x: 2, z: 0 },
+  ]
+  it('is the aim that is on, the one that began last when two are', () => {
+    expect(aimAt(aims, 99)).toBeNull()
+    expect(aimAt(aims, 120)?.x).toBe(1)
+    expect(aimAt(aims, 160)?.x).toBe(2)
+    expect(aimAt(aims, 220)?.x).toBe(2)
+    expect(aimAt(aims, 251)).toBeNull()
+  })
+})
+
+describe('a battery sharing out its aims', () => {
+  const aims: Aim[] = [
+    { from: 100, to: 300, x: 1, z: 0, target: 'a' },
+    { from: 100, to: 200, x: 2, z: 0, target: 'b' },
+    { from: 250, to: 400, x: 3, z: 0, target: 'c' },
+  ]
+  it('gives each gun its turn of the aims that are on, round and round', () => {
+    expect([0, 1, 2, 3, 4].map((slot) => gunAim(aims, 150, slot)?.target)).toEqual(['a', 'b', 'a', 'b', 'a'])
+    expect([0, 1, 2, 3].map((slot) => gunAim(aims, 270, slot)?.target)).toEqual(['a', 'c', 'a', 'c'])
+    expect([0, 1].map((slot) => gunAim(aims, 350, slot)?.target)).toEqual(['c', 'c'])
+  })
+  it('keeps facing the last place fired on, or the first it will fire on', () => {
+    expect(gunAim(aims, 450, 0)?.target).toBe('c')
+    expect(gunAim(aims, 50, 3)?.target).toBe('a')
+    expect(gunAim([], 50, 0)).toBeNull()
+  })
+})
+
+describe('path headings', () => {
+  const path = [p(0, 0), p(10, 0), p(10, 10)]
+  it('runs along the leg the fraction falls in', () => {
+    expect(pathHeading(path, 0)).toEqual({ x: 1, z: 0 })
+    expect(pathHeading(path, 0.4)).toEqual({ x: 1, z: 0 })
+    expect(pathHeading(path, 0.75)).toEqual({ x: 0, z: 1 })
+    expect(pathHeading(path, 1)).toEqual({ x: 0, z: 1 })
+  })
+  it('ignores height and zero-length legs, and has none for a path that goes nowhere', () => {
+    const climb = [{ x: 0, y: 0, z: 0 }, { x: 0, y: 9, z: 0 }, { x: 0, y: 9, z: 4 }]
+    expect(pathHeading(climb, 0.2)).toEqual({ x: 0, z: 1 })
+    expect(pathHeading([p(1, 1), p(1, 1)], 0.5)).toBeNull()
+    expect(pathHeading([], 0.5)).toBeNull()
+  })
+})
+
+describe('headingAt', () => {
+  const marches = [march(100, 200, [0, 0], [100, 0]), march(300, 400, [100, 0], [100, 100])]
+  const aims: Aim[] = [{ from: 250, to: 350, x: 100, z: -50 }]
+  const at = p(100, 0)
+  it('follows the path while marching, even while firing', () => {
+    expect(headingAt(marches, [], 150, p(50, 0))).toEqual({ x: 1, z: 0 })
+    expect(headingAt(marches, aims, 320, p(100, 20))).toEqual({ x: 0, z: 1 })
+  })
+  it('turns toward the place it fires on while it stands and fires', () => {
+    expect(headingAt(marches, aims, 260, at)).toEqual({ x: 0, z: -50 })
+  })
+  it('keeps the way it last walked when it stands idle', () => {
+    expect(headingAt(marches, aims, 220, at)).toEqual({ x: 1, z: 0 })
+    expect(headingAt(marches, aims, 500, p(100, 100))).toEqual({ x: 0, z: 1 })
+  })
+  it('faces what it does first before it has done anything', () => {
+    expect(headingAt(marches, aims, 50, p(0, 0))).toEqual({ x: 1, z: 0 }) // the march comes first
+    expect(headingAt([march(300, 400, [0, 0], [0, 100])], [{ from: 120, to: 200, x: -30, z: 0 }], 50, p(0, 0))).toEqual({ x: -30, z: 0 }) // the aim comes first
+  })
+  it('has no heading for a unit that never does anything, or one standing on its target with no walk behind it', () => {
+    expect(headingAt([], [], 100, at)).toBeNull()
+    expect(headingAt([], [{ from: 0, to: 500, x: 100, z: 0 }], 100, at)).toBeNull()
+  })
+})
+
+describe('the rock of a marching group', () => {
+  it('is still when standing', () => {
+    const r = marchRock(1.234, 3, 0)
+    expect(Math.abs(r.hop) + Math.abs(r.roll) + Math.abs(r.pitch)).toBe(0)
+  })
+  it('hops and sways within small bounds when marching, and never dips below the ground', () => {
+    let top = 0
+    for (let t = 0; t < 10; t += 0.01) {
+      const r = marchRock(t, 1, 1)
+      expect(r.hop).toBeGreaterThanOrEqual(0)
+      expect(Math.abs(r.roll)).toBeLessThan(0.06)
+      expect(Math.abs(r.pitch)).toBeLessThan(0.05)
+      top = Math.max(top, r.hop)
+    }
+    expect(top).toBeGreaterThan(1)
+    expect(top).toBeLessThan(2)
+  })
+  it('keeps two groups out of step', () => {
+    expect(marchRock(2, 0, 1).hop).not.toBeCloseTo(marchRock(2, 1, 1).hop, 2)
+  })
+})

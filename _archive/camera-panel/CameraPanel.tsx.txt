@@ -1,0 +1,222 @@
+import { useEffect, useRef, useState } from 'react'
+import { cameraBus } from '../camera/bus'
+import { manual, useManual, type ShotPatch } from '../camera/manual'
+import { SHOT_KEYS, focalLengthMm, fovFromFocalLength, fovFromZoom, shotsToJson, zoomOf, type ShotKey } from '../camera/manualShots'
+import { shot } from '../camera/shot'
+import './camera-panel.css'
+
+/** The window the shots are judged in: the smallest the app supports (see OrientationNotice). */
+const TARGET = { width: 1024, height: 600 }
+
+const MIN_ZOOM = 0.5
+const MAX_ZOOM = 40
+
+type RowProps = {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  step: number
+  digits?: number
+  /** Slider range; leave out for a number field alone. */
+  min?: number
+  max?: number
+  /** Maps the value to the slider and back (the zoom slider is logarithmic). */
+  toSlider?: (v: number) => number
+  fromSlider?: (s: number) => number
+  sliderStep?: number
+  title?: string
+}
+
+/** One setting: a label, a slider (optional) and a number field. Both write straight to the camera. */
+function Row({ label, value, onChange, step, digits = 1, min, max, toSlider = (v) => v, fromSlider = (s) => s, sliderStep = step, title }: RowProps) {
+  const shown = +value.toFixed(digits)
+  return (
+    <div className="cp-row" title={title}>
+      <span className="cp-label">{label}</span>
+      {min !== undefined && max !== undefined ? (
+        <input className="cp-range" type="range" min={toSlider(min)} max={toSlider(max)} step={sliderStep} value={toSlider(value)} aria-label={label} onChange={(e) => onChange(fromSlider(Number(e.target.value)))} />
+      ) : (
+        <span />
+      )}
+      <input
+        className="cp-num"
+        type="number"
+        step={step}
+        value={shown}
+        aria-label={`${label} (number)`}
+        onChange={(e) => Number.isFinite(e.target.valueAsNumber) && onChange(e.target.valueAsNumber)}
+      />
+    </div>
+  )
+}
+
+const useWindowSize = () => {
+  const read = () => ({ width: window.innerWidth, height: window.innerHeight })
+  const [size, setSize] = useState(read)
+  useEffect(() => {
+    const onResize = () => setSize(read())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return size
+}
+
+/**
+ * Dev-only panel for placing the camera by hand: one keyframe for each point of the day (see `manualShots.ts`). Picking a time
+ * holds the camera on that shot and every field moves it live; playing or scrubbing the timeline hands the camera back, and it
+ * flows through the keyframes (`track.ts`) so the moves can be judged. "Copy JSON" gives every placed shot, to paste into the table of committed shots. The X closes the panel
+ * and goes back to the wide shot.
+ */
+export function CameraPanel() {
+  if (!import.meta.env.DEV) return null
+  return <Panel />
+}
+
+function Panel() {
+  const { shots, editing, open } = useManual()
+  const size = useWindowSize()
+  const [collapsed, setCollapsed] = useState(false)
+  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
+  const fallback = useRef<HTMLTextAreaElement>(null)
+
+  // The viewer takes the camera back to the wide shot; the director waits until the clock is played or scrubbed again.
+  const toWide = () => {
+    cameraBus.directorOn = false
+    manual.stopEditing()
+  }
+
+  if (!open) {
+    return (
+      <button className="cp-open" onClick={() => manual.show()}>
+        Camera
+      </button>
+    )
+  }
+
+  const current = editing ? shots[editing] : undefined
+  const set = (patch: ShotPatch) => editing && manual.update(editing, patch)
+  const atTarget = Math.abs(size.width - TARGET.width) <= 1 && Math.abs(size.height - TARGET.height) <= 1
+  const text = () => shotsToJson(shots, size)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text())
+      setCopied('ok')
+    } catch {
+      setCopied('failed') // no clipboard access: the text is shown below, selected, to copy by hand
+      requestAnimationFrame(() => fallback.current?.select())
+    }
+    window.setTimeout(() => setCopied((c) => (c === 'ok' ? null : c)), 2000)
+  }
+
+  const wide = shot.wideFov || 20
+  const placedCount = SHOT_KEYS.filter((k) => shots[k]).length
+
+  return (
+    <aside className="cp" aria-label="Camera placement (development)">
+      <header className="cp-head">
+        <strong>Camera</strong>
+        <span className={`cp-win${atTarget ? ' is-ok' : ''}`} title={`Judge the shots at ${TARGET.width} × ${TARGET.height}, the smallest window the app supports`}>
+          {size.width} × {size.height}
+          {!atTarget && <small> aim {TARGET.width} × {TARGET.height}</small>}
+        </span>
+        <button className="cp-icon" onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand the panel' : 'Collapse the panel'} aria-expanded={!collapsed} title={collapsed ? 'Expand' : 'Collapse (keeps the shot)'}>
+          {collapsed ? '+' : '–'}
+        </button>
+        <button
+          className="cp-icon cp-x"
+          onClick={() => {
+            toWide()
+            manual.close()
+          }}
+          aria-label="Close and go back to the wide shot"
+          title="Close — back to the wide shot"
+        >
+          ✕
+        </button>
+      </header>
+
+      {!collapsed && (
+        <>
+          <div className="cp-chips" role="group" aria-label="Shot">
+            <button className={`cp-chip${!editing ? ' is-on' : ''}`} onClick={toWide} title="The wide shot">
+              Start
+            </button>
+            {SHOT_KEYS.map((k: ShotKey) => (
+              <button
+                key={k}
+                className={`cp-chip${editing === k ? ' is-on' : ''}${shots[k] ? ' is-placed' : ''}`}
+                onClick={() => manual.select(k, cameraBus.readPose?.() ?? null)}
+                title={shots[k] ? `Edit the ${k} camera` : `Place the ${k} camera, starting where the camera is now`}
+              >
+                {k.replace(':00', '')}
+              </button>
+            ))}
+          </div>
+
+          {editing && current ? (
+            <>
+              <h3 className="cp-h">Translation</h3>
+              <Row label="X (east)" value={current.position.x} step={1} min={-3000} max={3000} onChange={(x) => set({ position: { x } })} />
+              <Row label="Y (up)" value={current.position.y} step={1} min={2} max={4000} onChange={(y) => set({ position: { y } })} />
+              <Row label="Z (south)" value={current.position.z} step={1} min={-3000} max={3000} onChange={(z) => set({ position: { z } })} />
+
+              <h3 className="cp-h">Rotation</h3>
+              <Row label="Yaw" value={current.yawDeg} step={0.1} min={-180} max={180} title="Compass heading: 0 north, 90 east" onChange={(yawDeg) => set({ yawDeg })} />
+              <Row label="Pitch" value={current.pitchDeg} step={0.1} min={-30} max={90} title="Degrees below the horizon" onChange={(pitchDeg) => set({ pitchDeg })} />
+              <Row label="Roll" value={current.rollDeg} step={0.1} min={-45} max={45} onChange={(rollDeg) => set({ rollDeg })} />
+
+              <h3 className="cp-h">Zoom and lens <small>fov {current.fovDeg.toFixed(2)}°</small></h3>
+              <Row
+                label="Zoom ×"
+                value={zoomOf(wide, current.fovDeg)}
+                step={0.05}
+                digits={2}
+                min={MIN_ZOOM}
+                max={MAX_ZOOM}
+                toSlider={Math.log}
+                fromSlider={Math.exp}
+                sliderStep={0.002}
+                title="Magnification against the wide shot"
+                onChange={(z) => z > 0 && set({ fovDeg: fovFromZoom(wide, z) })}
+              />
+              <Row label="Lens mm" value={focalLengthMm(current.fovDeg)} step={1} digits={1} title="Full-frame equivalent focal length" onChange={(mm) => mm > 0 && set({ fovDeg: fovFromFocalLength(mm) })} />
+
+              <h3 className="cp-h">Depth of field</h3>
+              <Row label="Focus" value={current.dof.focusDistance} step={1} min={10} max={4000} title="Distance to what is sharp" onChange={(focusDistance) => set({ dof: { focusDistance } })} />
+              <Row label="Blur" value={current.dof.blur} step={0.1} min={0} max={30} title="0 = no depth of field" onChange={(blur) => set({ dof: { blur } })} />
+              <Row label="Range" value={current.dof.range} step={1} min={5} max={1000} title="Depth that stays sharp around the focus" onChange={(range) => set({ dof: { range } })} />
+              <button
+                className="cp-btn cp-wide"
+                onClick={() => {
+                  const d = cameraBus.centreDistance?.()
+                  if (d) set({ dof: { focusDistance: d } })
+                }}
+                title="Sets Focus to the distance of the ground at the middle of the frame"
+              >
+                Focus on the middle of the frame
+              </button>
+            </>
+          ) : (
+            <p className="cp-hint">
+              Pick a time to place its camera: it starts where the camera is now. Play or scrub the timeline to watch the camera flow
+              through your shots as keyframes; Start (or ✕) goes back to the wide shot.
+            </p>
+          )}
+
+          <footer className="cp-foot">
+            <button className="cp-btn" onClick={copy} disabled={placedCount === 0} title="Copies every placed shot, to paste to Claude">
+              {copied === 'ok' ? 'Copied ✓' : `Copy JSON (${placedCount})`}
+            </button>
+            {editing && (
+              <button className="cp-btn" onClick={() => manual.reset(editing)} title="Throw this shot away (or back to the committed one)">
+                Reset shot
+              </button>
+            )}
+          </footer>
+          {copied === 'failed' && <textarea ref={fallback} className="cp-fallback" readOnly value={text()} aria-label="Shots as JSON" />}
+        </>
+      )}
+    </aside>
+  )
+}

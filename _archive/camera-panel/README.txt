@@ -1,0 +1,1 @@
+The camera dev panel (removed from the app 2026-10-13). To bring it back: copy both files to src/ui/ without the .txt, import CameraPanel in App.tsx and render it. The camera still follows MANUAL_SHOTS (src/camera/manualShots.ts); the store in src/camera/manual.ts is untouched.

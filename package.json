@@ -15,11 +15,16 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "sync-assets": "node scripts/sync-assets.mjs",
-    "test": "vitest run"
+    "optimize-video": "node scripts/optimize-video.mjs",
+    "test": "vitest run",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:dry": "npm run build && wrangler deploy --dry-run"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
+    "@react-three/postprocessing": "^3.1.3",
+    "postprocessing": "^6.39.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "^0.186.1"
@@ -32,6 +37,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "wrangler": "^4.151.0"
   }
 }

@@ -2,23 +2,24 @@ import { MapControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef, type ComponentRef } from 'react'
 import { Vector3, type PerspectiveCamera } from 'three'
+import { clock } from '../timeline/clock'
 import {
+  MAX_FRAME_DT,
   MAX_POLAR_DEG,
   MIN_DISTANCE,
   MIN_POLAR_DEG,
   VFOV_DEG,
   clampCameraHeight,
   clampTarget,
-  defaultFraming,
-  fitDistance,
   maxDistanceFor,
+  openingFraming,
   panVector,
   type Bounds,
 } from './math'
+import { useFramedPoints } from './framing'
 import { useKeyboardPan } from './useKeyboardPan'
 
 const rad = (deg: number) => (deg * Math.PI) / 180
-const MAX_FRAME_DT = 0.1 // a tab coming back from the background must not teleport the camera
 const heading = new Vector3()
 
 export function MapCamera({ bounds }: { bounds: Bounds }) {
@@ -27,13 +28,14 @@ export function MapCamera({ bounds }: { bounds: Bounds }) {
   const controls = useRef<ComponentRef<typeof MapControls>>(null)
   const keys = useKeyboardPan()
   const maxDistance = useMemo(() => maxDistanceFor(bounds), [bounds])
+  const mustSee = useFramedPoints()
 
   // Framed once per terrain. Reading the size via get() (not a subscription) means a window
   // resize does not reset the user's view.
   const framing = useMemo(() => {
     const { width, height } = get().size
-    return defaultFraming(bounds, fitDistance(bounds, VFOV_DEG, width / height))
-  }, [bounds, get])
+    return openingFraming(bounds, VFOV_DEG, width / height, mustSee)
+  }, [bounds, get, mustSee])
 
   useLayoutEffect(() => {
     const { target, position } = framing
@@ -46,7 +48,7 @@ export function MapCamera({ bounds }: { bounds: Bounds }) {
     persp.far = Math.max(persp.far, maxDistance * 2.5)
     persp.updateProjectionMatrix()
     // Dev-only hook for manual checks; `advance` steps the frame loop when the tab is not being painted.
-    if (import.meta.env.DEV) Object.assign(window, { __map: { camera, controls: controls.current, bounds, advance: get().advance } })
+    if (import.meta.env.DEV) Object.assign(window, { __map: { camera, controls: controls.current, bounds, advance: get().advance, three: get, clock } })
   }, [camera, framing, bounds, get, maxDistance])
 
   // Runs after drei's controls.update() (priority -1), so we adjust the final state each frame.

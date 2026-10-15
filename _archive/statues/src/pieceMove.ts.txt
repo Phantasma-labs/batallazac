@@ -1,0 +1,40 @@
+import { Box3, Matrix4, type Mesh, type Object3D } from 'three'
+import type { Vec3 } from '../camera/math'
+
+/** The extent of a piece as it was baked into its GLB (world coordinates), the part that matters for standing it somewhere else. */
+export type PieceBounds = { minX: number; maxX: number; minY: number; minZ: number; maxZ: number }
+
+/**
+ * How far to move a piece so that its middle (x, z) is over `place` and its underside rests on the place's ground
+ * height (`place.y`). Used to stand a baked statue somewhere other than where Blender put it, without a new export.
+ */
+export function moveToPlace(baked: PieceBounds, place: Vec3): Vec3 {
+  return {
+    x: place.x - (baked.minX + baked.maxX) / 2,
+    y: place.y - baked.minY,
+    z: place.z - (baked.minZ + baked.maxZ) / 2,
+  }
+}
+
+const toParentSpace = new Matrix4()
+const meshBox = new Box3()
+
+/**
+ * The extent of a loaded piece (`scene`) as baked, in the space of whatever it hangs in: measured against the piece's own transform
+ * only, so it gives the same answer whether the piece sits at the root or inside a group that has already moved it (a measure
+ * of the live world box would then include the move, and a re-render would shift the piece again).
+ */
+export function bakedBounds(scene: Object3D): PieceBounds {
+  scene.updateWorldMatrix(true, true)
+  const inverse = new Matrix4().copy(scene.matrixWorld).invert()
+  const box = new Box3()
+  scene.traverse((o) => {
+    const mesh = o as Mesh
+    if (!mesh.isMesh) return
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
+    // Mesh space -> scene space (inverse of the scene's world, times the mesh's world), then scene space -> its parent (the scene's own matrix).
+    toParentSpace.multiplyMatrices(inverse, mesh.matrixWorld).premultiply(scene.matrix)
+    box.union(meshBox.copy(mesh.geometry.boundingBox!).applyMatrix4(toParentSpace))
+  })
+  return { minX: box.min.x, maxX: box.max.x, minY: box.min.y, minZ: box.min.z, maxZ: box.max.z }
+}

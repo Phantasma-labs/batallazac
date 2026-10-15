@@ -2,8 +2,16 @@ node_modules
 dist
 *.log
 .superpowers
-# synced from Blender/Exports by `npm run sync-assets`
-public/models
-public/textures
-public/draco
+.wrangler
 *.tmp
+
+# The films are 18 to 20 MB each (95 MB in all) and the repo is public: they stay on this machine, `npm run deploy` uploads them from
+# public/videos. (Git LFS is the way to version them if that is ever wanted.)
+public/videos/*.mp4
+
+# The retired 3D statues (see _archive/statues/README.md): the sources are kept in git, the six GLBs (31 MB) only on disk.
+_archive/**/*.glb
+
+# Progress-page screenshots of the 2026-10-09 review rounds (26 MB).
+docs/superpowers/progress/frames/
+docs/superpowers/progress/blind/
