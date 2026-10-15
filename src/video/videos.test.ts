@@ -7,6 +7,8 @@ import { hm, type TimelineEvent } from '../timeline/model'
 import { HOTSPOTS, VIDEO_FILES, VIDEO_SOURCES, fileIn, hotspotsOf, stopCrossed, windowAt, type Hotspot, type VideoFile } from './videos'
 
 const publicDir = fileURLToPath(new URL('../../public', import.meta.url))
+// The films are not in git (public repo, 95 MB): a clone has none, and there is nothing to check then.
+const hasFilms = existsSync(join(publicDir, 'videos', 'natera.mp4'))
 const file: VideoFile = { src: 'videos/x.mp4' }
 const hotspot = (time: number, f: VideoFile | null = file, resumeAt = time): Hotspot => ({ eventId: `e${time}`, videoId: `v${time}`, time, resumeAt, file: f })
 const ev = (id: string, time: number, video?: TimelineEvent['video']): TimelineEvent => ({
@@ -43,7 +45,7 @@ describe('hotspotsOf', () => {
     ])
     expect(HOTSPOTS.map((h) => h.eventId)).toEqual(EVENTS.filter((e) => e.video).map((e) => e.id))
   })
-  it('lists only files that exist in public/', () => {
+  it.skipIf(!hasFilms)('lists only files that exist in public/', () => {
     for (const [id, f] of Object.entries(VIDEO_FILES)) {
       expect(existsSync(join(process.cwd(), 'public', f.src)), `${id} video`).toBe(true)
       if (f.poster) expect(existsSync(join(process.cwd(), 'public', f.poster)), `${id} poster`).toBe(true)
@@ -100,7 +102,7 @@ describe('videos by language', () => {
   it('falls back to the Spanish file when there is no English cut', () => {
     expect(fileIn({ src: 'b.mp4', poster: 'b.jpg' }, 'en')).toEqual({ src: 'b.mp4', poster: 'b.jpg' })
   })
-  it('lists a file on disk for every cut of every video', () => {
+  it.skipIf(!hasFilms)('lists a file on disk for every cut of every video', () => {
     for (const s of Object.values(VIDEO_SOURCES)) for (const f of [s, s.en]) if (f) expect(existsSync(join(publicDir, f.src)), f.src).toBe(true)
   })
 })
