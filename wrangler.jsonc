@@ -1,0 +1,9 @@
+{
+  // Static site on Cloudflare Workers (static assets): no Worker script, the built page is served from ./dist.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "toma-zacatecas",
+  "compatibility_date": "2026-10-14",
+  "assets": {
+    "directory": "./dist"
+  }
+}
