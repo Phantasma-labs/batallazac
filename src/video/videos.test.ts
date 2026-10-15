@@ -34,13 +34,13 @@ describe('hotspotsOf', () => {
     expect(none.file).toBeNull()
     expect(odd.file).toBeNull()
   })
-  it('in the real day: the films at 00:00, 12:00, 16:00 and 17:00 play, the other hotspots are placeholders until their files are listed', () => {
+  it('in the real day: the films at 00:00, 12:00, 16:00, 17:00 and 19:00 play, the other hotspots are placeholders until their files are listed', () => {
     expect(HOTSPOTS.map((h) => [h.time, h.resumeAt, h.videoId, h.file !== null])).toEqual([
       [hm(0), hm(10), 'felipe-angeles', true],
       [hm(12), hm(12), 'villistas', true],
       [hm(16), hm(16), 'natera', true],
       [hm(17), hm(17), 'zacatecas-centro', true],
-      [hm(19), hm(19), 'la-bufa', false],
+      [hm(19), hm(19), 'la-bufa', true],
       [hm(20), hm(20), 'battle-over', false],
     ])
     expect(HOTSPOTS.map((h) => h.eventId)).toEqual(EVENTS.filter((e) => e.video).map((e) => e.id))

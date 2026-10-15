@@ -24,6 +24,7 @@ export const VIDEO_SOURCES: Record<string, VideoSource> = {
   villistas: { src: 'videos/villistas.mp4', poster: 'videos/villistas.jpg', en: { src: 'videos/villistas-en.mp4' } },
   natera: { src: 'videos/natera.mp4', poster: 'videos/natera.jpg' },
   'zacatecas-centro': { src: 'videos/zacatecas-centro.mp4', poster: 'videos/zacatecas-centro.jpg' },
+  'la-bufa': { src: 'videos/la-bufa.mp4', poster: 'videos/la-bufa.jpg' },
 }
 
 /** The videos in the page's language (the sources of `VIDEO_SOURCES` resolved once, when the page loads). */
