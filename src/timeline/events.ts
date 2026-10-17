@@ -285,10 +285,9 @@ export const EVENTS: TimelineEvent[] = [
       es: 'Al caer la noche Zacatecas es de los revolucionarios y el campo queda en silencio.',
       en: 'By nightfall Zacatecas is in the hands of the revolutionaries and the field falls silent.',
     },
-    // The camera is back on the opening wide shot (the end of the camera track).
-    video: { id: 'battle-over' },
+    // The camera is back on the opening wide shot (the end of the camera track). No video here.
     source: 'inferred',
-    note: "Placed by the author as the end of the day: the camera returns to the opening shot. Its video is still to come.",
-    noteEs: "Colocado por el autor como final del día: la cámara vuelve al plano de apertura. Su video aún está por hacer.",
+    note: "Placed by the author as the end of the day: the camera returns to the opening shot.",
+    noteEs: "Colocado por el autor como final del día: la cámara vuelve al plano de apertura.",
   },
 ]

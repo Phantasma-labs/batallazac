@@ -3,16 +3,16 @@ import { EVENTS } from '../timeline/events'
 import type { TimelineEvent } from '../timeline/model'
 
 /** A video in public/, by path relative to the page (like the models), and its poster picture shown until it can play. */
-export type VideoFile = { src: string; poster?: string }
+export type VideoFile = { src: string; poster?: string; /** WebVTT captions over the film: on the English page, English subtitles over the Spanish narration. */ subtitles?: string }
 
 /** A video as it exists in each language: the Spanish file, and the English one when there is one (the English page plays the Spanish one otherwise). */
-export type VideoSource = VideoFile & { en?: VideoFile }
+export type VideoSource = Omit<VideoFile, 'subtitles'> & { en?: VideoFile; subtitlesEn?: string }
 
 /** The file of a source in a language (its poster too, falling back to the Spanish poster when the English cut has none). */
 export function fileIn(source: VideoSource, lang: Lang): VideoFile {
-  const { en, ...es } = source
+  const { en, subtitlesEn, ...es } = source
   const file = byLang<VideoFile>(es, en, lang)
-  return { src: file.src, poster: file.poster ?? es.poster }
+  return { src: file.src, poster: file.poster ?? es.poster, ...(lang === 'en' && subtitlesEn ? { subtitles: subtitlesEn } : {}) }
 }
 
 /**
@@ -20,11 +20,11 @@ export function fileIn(source: VideoSource, lang: Lang): VideoFile {
  * on the strip and does nothing. To add one: `npm run optimize-video -- <master.mov> <id>`, then list `<id>` here.
  */
 export const VIDEO_SOURCES: Record<string, VideoSource> = {
-  'felipe-angeles': { src: 'videos/felipe-angeles.mp4', poster: 'videos/felipe-angeles.jpg' },
-  villistas: { src: 'videos/villistas.mp4', poster: 'videos/villistas.jpg', en: { src: 'videos/villistas-en.mp4' } },
-  natera: { src: 'videos/natera.mp4', poster: 'videos/natera.jpg' },
-  'zacatecas-centro': { src: 'videos/zacatecas-centro.mp4', poster: 'videos/zacatecas-centro.jpg' },
-  'la-bufa': { src: 'videos/la-bufa.mp4', poster: 'videos/la-bufa.jpg' },
+  'felipe-angeles': { src: 'videos/felipe-angeles.mp4', poster: 'videos/felipe-angeles.jpg', subtitlesEn: 'videos/felipe-angeles.en.vtt' },
+  villistas: { src: 'videos/villistas.mp4', poster: 'videos/villistas.jpg', subtitlesEn: 'videos/villistas.en.vtt' },
+  natera: { src: 'videos/natera.mp4', poster: 'videos/natera.jpg', subtitlesEn: 'videos/natera.en.vtt' },
+  'zacatecas-centro': { src: 'videos/zacatecas-centro.mp4', poster: 'videos/zacatecas-centro.jpg', subtitlesEn: 'videos/zacatecas-centro.en.vtt' },
+  'la-bufa': { src: 'videos/la-bufa.mp4', poster: 'videos/la-bufa.jpg', subtitlesEn: 'videos/la-bufa.en.vtt' },
 }
 
 /** The videos in the page's language (the sources of `VIDEO_SOURCES` resolved once, when the page loads). */

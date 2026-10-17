@@ -23,9 +23,9 @@ const frame = (c: ReturnType<typeof createClock>, n: ReturnType<typeof createNar
 }
 
 describe('map narration', () => {
-  it('has seven lines, at 10:00, 11:00, 12:00, 16:00, 17:00, 18:00 and 19:00, in order, the last one before the day ends', () => {
-    expect(NARRATION.map((l) => l.at)).toEqual([hm(10), hm(11), hm(12), hm(16), hm(17), hm(18), hm(19)])
-    expect(new Set(NARRATION.map((l) => l.src)).size).toBe(7)
+  it('has eight lines, at 10:00, 11:00, 12:00, 16:00, 17:00, 18:00, 19:00 and 19:30, in order, the last one before the day ends', () => {
+    expect(NARRATION.map((l) => l.at)).toEqual([hm(10), hm(11), hm(12), hm(16), hm(17), hm(18), hm(19), hm(19, 30)])
+    expect(new Set(NARRATION.map((l) => l.src)).size).toBe(8)
     expect(NARRATION.at(-1)!.at).toBeLessThan(DAY_END)
   })
 
@@ -140,5 +140,22 @@ describe('narration by language', () => {
   })
   it('keeps the Spanish voice until an English file exists', () => {
     expect(lineIn(line, 'en')).toEqual(line)
+  })
+  it('adds the English subtitle on the English page only, keeping the Spanish voice', () => {
+    const sub = { ...line, subtitleEn: 'Hello' }
+    expect(lineIn(sub, 'en')).toEqual({ ...line, subtitle: 'Hello' })
+    expect(lineIn(sub, 'es')).toEqual(line)
+  })
+  it('follows the line being spoken, for the subtitle', () => {
+    const c = createClock(hm(9, 59))
+    const { voice } = fakeVoice()
+    const n = createNarrator(c, voice)
+    const seen: (string | undefined)[] = []
+    n.subscribe(() => seen.push(n.lineSnapshot()?.id))
+    c.play()
+    for (let i = 0; i < 60 * 3 && seen.length < 1; i++) frame(c, n)
+    expect(n.lineSnapshot()?.id).toBe('n1')
+    n.setMuted(true)
+    expect(n.lineSnapshot()).toBeNull()
   })
 })

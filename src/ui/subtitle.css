@@ -1,0 +1,21 @@
+/* The English subtitle over the map: top centre, just below the timeline bar (the bar is about 47 px tall at 1344 x 768; .tl is 30). */
+.sub {
+  --px: clamp(1px, min(calc(1px + (100vh - 768px) * 0.0008), calc(1px + (100vw - 1344px) * 0.00045)), 2px); /* the bar's own unit, which is only defined inside .tl */
+  position: fixed;
+  left: 50%;
+  top: calc(58 * var(--px));
+  z-index: 29;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(60vw, calc(760 * var(--px)));
+  margin: 0;
+  padding: calc(8 * var(--px)) calc(16 * var(--px));
+  transform: translateX(-50%);
+  text-align: center;
+  font: 600 calc(19 * var(--px)) / 1.35 var(--sans, system-ui, sans-serif);
+  color: var(--paper, #f3e9d2);
+  background: rgba(14, 10, 6, 0.66);
+  border-radius: calc(4 * var(--px));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}

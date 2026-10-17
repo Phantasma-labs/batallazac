@@ -68,3 +68,10 @@
   box-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
 }
 .vo-big svg { width: 30px; height: 30px; margin-left: 4px; fill: var(--ink); }
+
+/* The English subtitles (WebVTT track) over the film. */
+.vo-video::cue {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #f3e9d2;
+  background: rgba(14, 10, 6, 0.72);
+}

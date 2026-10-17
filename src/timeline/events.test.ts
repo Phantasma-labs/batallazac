@@ -281,16 +281,15 @@ describe('video hotspots', () => {
     expect(e.video).toEqual({ id: 'felipe-angeles', resumeAt: hm(10) })
     expect(EVENTS[0].id).toBe('felipe-angeles')
   })
-  it('puts a video on 12:00, 16:00, 17:00 and 19:00, and none on 10:00, 11:00 or 18:00', () => {
+  it('puts a video on 12:00, 16:00, 17:00 and 19:00, and none on 10:00, 11:00, 18:00 or 20:00', () => {
     expect(withVideo.map((e) => [e.time, e.video!.id])).toEqual([
       [hm(0), 'felipe-angeles'],
       [hm(12), 'villistas'],
       [hm(16), 'natera'],
       [hm(17), 'zacatecas-centro'],
       [hm(19), 'la-bufa'],
-      [hm(20), 'battle-over'],
     ])
-    for (const h of [10, 11, 18]) for (const e of EVENTS.filter((x) => x.time === hm(h))) expect(e.video, e.id).toBeUndefined()
+    for (const h of [10, 11, 18, 20]) for (const e of EVENTS.filter((x) => x.time === hm(h))) expect(e.video, e.id).toBeUndefined()
   })
   it('resumes every video inside the day, never before it began', () => {
     for (const e of withVideo) {

@@ -32,17 +32,25 @@ export function createNarrator(clock: Clock, voice: Voice, lines: readonly Narra
   let paused = false
   let muted = false
   let waiting: NarrationLine | null = null
+  let current: NarrationLine | null = null
   const listeners = new Set<() => void>()
+  const notify = () => listeners.forEach((l) => l())
   const start = (line: NarrationLine) => {
     speaking = true
     paused = false
+    current = line
     voice.play(line.src)
+    notify()
   }
   const stop = () => {
     if (speaking) voice.stop()
     speaking = false
     paused = false
     waiting = null
+    if (current) {
+      current = null
+      notify()
+    }
   }
   return {
     get muted() {
@@ -51,7 +59,7 @@ export function createNarrator(clock: Clock, voice: Voice, lines: readonly Narra
     setMuted(value: boolean) {
       muted = value
       if (muted) stop()
-      listeners.forEach((l) => l())
+      notify()
     },
     subscribe(l: () => void) {
       listeners.add(l)
@@ -60,6 +68,8 @@ export function createNarrator(clock: Clock, voice: Voice, lines: readonly Narra
       }
     },
     snapshot: () => muted,
+    /** The line being spoken (or paused mid-line), null between lines: the English subtitle follows it. */
+    lineSnapshot: () => current,
     /** A line is being spoken now (the music ducks under it). */
     get speaking() {
       return speaking && !paused
@@ -87,6 +97,10 @@ export function createNarrator(clock: Clock, voice: Voice, lines: readonly Narra
     ended() {
       speaking = false
       paused = false
+      if (current) {
+        current = null
+        notify()
+      }
       const next = waiting
       waiting = null
       if (next && clock.playing && !muted) start(next)

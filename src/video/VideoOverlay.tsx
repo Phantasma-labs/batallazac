@@ -41,7 +41,16 @@ function Player({ open }: { open: Open }) {
       }
     }
     window.addEventListener('keydown', onKey)
+    // Chromium can sit on the last frame without firing `ended` (seen with natera.mp4 and zacatecas-centro.mp4, whose audio is exactly
+    // as long as the picture), and the day would hang there: a film held at its end for a second while not paused is closed.
+    let held = 0
+    const watch = window.setInterval(() => {
+      const v = video.current
+      held = v && !v.paused && v.duration > 0 && v.currentTime >= v.duration - 0.05 ? held + 1 : 0
+      if (held >= 4) playback.close()
+    }, 250)
     return () => {
+      window.clearInterval(watch)
       window.removeEventListener('keydown', onKey)
       // Back to the Play button, not to a tick the viewer clicked: Space on a focused tick would open its video again.
       document.querySelector<HTMLElement>('.tl-play')?.focus()
@@ -75,7 +84,13 @@ function Player({ open }: { open: Open }) {
             onEnded={() => playback.close()}
             onError={() => playback.close()}
             onClick={toggle}
-          />
+            onLoadedMetadata={(e) => {
+              // The English page: subtitles over the Spanish narration, on from the first frame.
+              for (const track of Array.from(e.currentTarget.textTracks)) track.mode = 'showing'
+            }}
+          >
+            {file.subtitles && <track default kind="subtitles" srcLang="en" label="English" src={file.subtitles} />}
+          </video>
           {!ready && !needsTap && <div className="vo-spin" role="status" aria-label={t('Cargando el video', 'Loading video')} />}
           {(needsTap || paused) && (
             <button className="vo-big" onClick={toggle} aria-label={t('Reproducir el video', 'Play video')}>

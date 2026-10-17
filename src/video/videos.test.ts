@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -34,14 +34,13 @@ describe('hotspotsOf', () => {
     expect(none.file).toBeNull()
     expect(odd.file).toBeNull()
   })
-  it('in the real day: the films at 00:00, 12:00, 16:00, 17:00 and 19:00 play, the other hotspots are placeholders until their files are listed', () => {
+  it('in the real day: the films at 00:00, 12:00, 16:00, 17:00 and 19:00 play, and there is no hotspot at 20:00', () => {
     expect(HOTSPOTS.map((h) => [h.time, h.resumeAt, h.videoId, h.file !== null])).toEqual([
       [hm(0), hm(10), 'felipe-angeles', true],
       [hm(12), hm(12), 'villistas', true],
       [hm(16), hm(16), 'natera', true],
       [hm(17), hm(17), 'zacatecas-centro', true],
       [hm(19), hm(19), 'la-bufa', true],
-      [hm(20), hm(20), 'battle-over', false],
     ])
     expect(HOTSPOTS.map((h) => h.eventId)).toEqual(EVENTS.filter((e) => e.video).map((e) => e.id))
   })
@@ -104,5 +103,16 @@ describe('videos by language', () => {
   })
   it.skipIf(!hasFilms)('lists a file on disk for every cut of every video', () => {
     for (const s of Object.values(VIDEO_SOURCES)) for (const f of [s, s.en]) if (f) expect(existsSync(join(publicDir, f.src)), f.src).toBe(true)
+  })
+  it('puts the English subtitles on the English page only, over the Spanish film', () => {
+    const subbed = { src: 'c.mp4', poster: 'c.jpg', subtitlesEn: 'c.en.vtt' }
+    expect(fileIn(subbed, 'en')).toEqual({ src: 'c.mp4', poster: 'c.jpg', subtitles: 'c.en.vtt' })
+    expect(fileIn(subbed, 'es')).toEqual({ src: 'c.mp4', poster: 'c.jpg' })
+  })
+  it.skipIf(!hasFilms)('has an English subtitle file on disk for every video', () => {
+    for (const [id, s] of Object.entries(VIDEO_SOURCES)) {
+      expect(s.subtitlesEn, id).toBeTruthy()
+      expect(readFileSync(join(publicDir, s.subtitlesEn!), 'utf8').startsWith('WEBVTT'), id).toBe(true)
+    }
   })
 })
