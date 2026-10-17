@@ -64,7 +64,7 @@ export function tickGroups(events: readonly TimelineEvent[], ready: (videoId: st
 
 /** The tooltip text of a tick: the time, then one line per event (inferred ones say so), then what its video is. */
 export function tickTip(g: TickGroup, clockText: string): string {
-  const lines = [clockText, ...g.events.map((e) => (e.source === 'inferred' ? `${pick(e.title)} ${t('(inferido)', '(inferred)')}` : pick(e.title)))]
+  const lines = [clockText, ...g.events.map((e) => pick(e.title))]
   if (g.video === 'ready') lines.push('▶ Video')
   if (g.video === 'coming') lines.push(t('Video próximamente', 'Video coming soon'))
   return lines.join('\n')

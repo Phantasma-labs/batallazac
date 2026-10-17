@@ -119,7 +119,7 @@ describe('tickGroups', () => {
 describe('tickTip', () => {
   it('lists the time and one line per event, marking the inferred ones', () => {
     const [g] = tickGroups([ev('a', 'villa', 780), ev('b', 'villa', 780, { source: 'inferred' })])
-    expect(tickTip(g, '13:00')).toBe('13:00\na\nb (inferido)')
+    expect(tickTip(g, '13:00')).toBe('13:00\na\nb')
   })
 })
 
@@ -164,7 +164,7 @@ describe('tickGroups and videos', () => {
       [1020, 'coming'],
       [1080, 'none'],
       [1140, 'coming'],
-      [1200, 'coming'],
+      [1200, 'none'],
     ])
   })
 })

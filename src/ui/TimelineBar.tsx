@@ -2,7 +2,8 @@ import { useEffect, useRef, useSyncExternalStore, type PointerEvent as ReactPoin
 import { narration } from '../audio/narration'
 import { clock, useClock } from '../timeline/clock'
 import { EVENTS } from '../timeline/events'
-import { formatClock, hm, nextEvent, previousEvent, type TimelineEvent } from '../timeline/model'
+import { watchIdleReset } from '../timeline/idleReset'
+import { DAY_END, DAY_START, formatClock, hm, nextEvent, previousEvent, type TimelineEvent } from '../timeline/model'
 import { BAR_END, SQUEEZES, fromBar, toBar } from '../timeline/timeScale'
 import { captionText, focusEvent, laneOf, tickGroups, tickTip } from './captions'
 import { playback } from '../video/playback'
@@ -25,8 +26,6 @@ function Popover({ event, id }: { event: TimelineEvent; id: string }) {
     <div className={`tl-pop is-${event.track}`} role="tooltip" id={id}>
       <div className="tl-pop-meta">
         <span className="tl-chip">{laneOf(event.track).name}</span>
-        <time>{formatClock(event.time)}</time>
-        <span className={`tl-src${inferred ? ' is-inferred' : ''}`}>{inferred ? t('Inferido', 'Inferred') : t('Documentado', 'Sourced')}</span>
       </div>
       <p className="tl-pop-title">{pick(event.title)}</p>
       <p className="tl-pop-text">{pick(event.text)}</p>
@@ -45,6 +44,11 @@ export function TimelineBar() {
   const muted = useSyncExternalStore(narration.subscribe, narration.snapshot)
   const strip = useRef<HTMLDivElement>(null)
   const primary = focusEvent(EVENTS, time)
+  // At the start (and once the day is over) the Play button calls for attention: a bobbing arrow and a pulsing ring.
+  const callPlay = !playing && (time <= DAY_START || time >= DAY_END)
+
+  // A kiosk: ten seconds after the day ends with nobody at it, everything goes back to the start.
+  useEffect(() => watchIdleReset(clock, playback), [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -83,8 +87,6 @@ export function TimelineBar() {
               <div className="tl-plate-body" key={primary.id}>
                 <h3 className="tl-plate-title">
                   <span className="tl-chip">{laneOf(primary.track).name}</span>
-                  <time>{formatClock(primary.time)}</time>
-                  <span className="tl-dot" aria-hidden>·</span>
                   <span className="tl-plate-name">{pick(primary.title)}</span>
                 </h3>
                 <p className="tl-plate-text">{captionText(pick(primary.text))}</p>
@@ -97,8 +99,6 @@ export function TimelineBar() {
               <div className="tl-plate-body">
                 <h3 className="tl-plate-title">
                   <span className="tl-chip">1914</span>
-                  <time>{now}</time>
-                  <span className="tl-dot" aria-hidden>·</span>
                   <span className="tl-plate-name">{t('Antes de la batalla', 'Before the battle')}</span>
                 </h3>
                 <p className="tl-plate-text">{t('Pulsa reproducir, o arrastra por la cronología, para seguir el 23 de junio hora por hora.', 'Press play, or drag along the timeline, to follow 23 June hour by hour.')}</p>
@@ -143,7 +143,7 @@ export function TimelineBar() {
                     className={`tl-tick${g.video === 'none' ? ' is-info' : ' is-video'}${g.video === 'coming' ? ' is-coming' : ''}${g.inferred ? ' is-inferred' : ''}${isNow ? ' is-now is-focus' : ''}`}
                     style={{ left: pct(g.time) }}
                     data-tip={tickTip(g, formatClock(g.time))}
-                    aria-label={`${formatClock(g.time)} ${text}${g.inferred ? t(' (inferido)', ' (inferred)') : ''}${g.video === 'ready' ? ' (video)' : g.video === 'coming' ? t(' (video próximamente)', ' (video coming soon)') : ''}`}
+                    aria-label={`${formatClock(g.time)} ${text}${g.video === 'ready' ? ' (video)' : g.video === 'coming' ? t(' (video próximamente)', ' (video coming soon)') : ''}`}
                     onClick={() => playback.jump(g.time)}
                   >
                     {g.video !== 'none' && <i className="tl-mark" aria-hidden />}
@@ -172,7 +172,7 @@ export function TimelineBar() {
         </div>
 
         <div className="tl-corner">
-        <button className="tl-play" onClick={() => playback.toggle()} aria-label={playing ? t('Pausar', 'Pause') : t('Reproducir', 'Play')} title={t('Espacio', 'Space')}>
+        <button className={`tl-play${callPlay ? ' is-calling' : ''}`} onClick={() => playback.toggle()} aria-label={playing ? t('Pausar', 'Pause') : t('Reproducir', 'Play')} title={t('Espacio', 'Space')}>
           {playing ? (
             <svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
           ) : (

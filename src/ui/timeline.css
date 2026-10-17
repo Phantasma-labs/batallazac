@@ -146,6 +146,12 @@
   border-radius: 50%;
 }
 .tl-i.is-inferred { border-style: dashed; }
+
+/* For now only the "i" icon of the caption shows (the popover still opens on hover or focus). Delete this block to bring the whole plate back. */
+.tl-plate { min-width: 0; padding: 0; background: none; border: 0; box-shadow: none; }
+.tl-plate-body { display: none; }
+.tl-plate:focus-visible { box-shadow: none; }
+.tl-i { width: calc(26 * var(--px)); height: calc(26 * var(--px)); font-size: calc(16 * var(--px)); background: var(--plate); border-color: var(--gold); color: var(--gold); }
 .tl-plate:hover .tl-i, .tl-plate:focus-visible .tl-i { color: var(--ink); background: var(--paper); border-color: var(--paper); }
 
 /* What the caption leaves out, above it on hover or keyboard focus. */
@@ -246,7 +252,24 @@
 .tl-play:hover, .tl-voice:hover, .tl-lang:hover { color: #ffc860; background: rgba(243, 233, 210, 0.16); }
 .tl-lang { font: 700 calc(15 * var(--px))/1 var(--sans); letter-spacing: 0.06em; }
 .tl-voice.is-off { color: var(--text); opacity: 0.7; }
-.tl-play svg { width: calc(28 * var(--px)); height: calc(28 * var(--px)); fill: currentColor; }
+/* Play is the main control: bigger than the other two, and the row lines up on its centre. */
+.tl-corner { align-items: center; }
+.tl-play { position: relative; width: calc(72 * var(--px)); height: calc(72 * var(--px)); }
+.tl-play svg { width: calc(40 * var(--px)); height: calc(40 * var(--px)); fill: currentColor; }
+
+/* The call to press Play: a ring that pulses out of the button and a soft glow. */
+.tl-play.is-calling { color: #ffc860; background: rgba(243, 233, 210, 0.16); animation: tl-play-glow 1.8s ease-in-out infinite; }
+.tl-play.is-calling::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: calc(3 * var(--px)) solid var(--gold);
+  pointer-events: none;
+  animation: tl-play-ring 1.8s ease-out infinite;
+}
+@keyframes tl-play-ring { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes tl-play-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(242, 180, 65, 0); } 50% { box-shadow: 0 0 calc(22 * var(--px)) rgba(242, 180, 65, 0.55); } }
 .tl-voice svg { width: calc(32 * var(--px)); height: calc(32 * var(--px)); fill: currentColor; stroke: none; }
 .tl-voice .tl-voice-x { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .tl-play:focus-visible, .tl-voice:focus-visible, .tl-lang:focus-visible, .tl-tick:focus-visible { outline: calc(2 * var(--px)) solid #fffaf0; outline-offset: calc(2 * var(--px)); }
