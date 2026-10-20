@@ -10,12 +10,9 @@ meant to work on a tablet or a museum kiosk PC.
 
 ## Status
 
-**Milestone 1, the scene foundation, is done:** the baked terrain and landmark/unit models render with a
-bounded orbit/pan/zoom/WASD camera, and the build pipeline from Blender is in place.
-
-Planned next (see [the design spec](docs/superpowers/specs/2026-09-30-interactive-map-design.md)): location
-pins that fly the camera to each place and open a short video, a battle timeline with faction-coloured
-movement arrows, and idle/attract behaviour for kiosks.
+The scene, the battle timeline with pins, five films with subtitles, narration and the Spanish/English page are built and deployed.
+See [`HANDOVER.md`](HANDOVER.md) for the current state and what is next; the early design is in
+[the design spec](docs/superpowers/specs/2026-09-30-interactive-map-design.md).
 
 ## The 3D assets are not in this repository
 

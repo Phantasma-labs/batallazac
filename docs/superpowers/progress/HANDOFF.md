@@ -1,5 +1,7 @@
 # Handoff: timeline, pins, soldiers and guns (end of session, 2026-10-09 evening)
 
+> **2026-10-20: read `/HANDOVER.md` first.** Since this was written: the work is committed and pushed, `public/videos/*.mp4` is git-ignored and served from R2 by a Worker, and no English film exists (English uses subtitles).
+
 > **2026-10-14 cleanup (read this before the rest): the 3D statues and props are gone.** The units are only the formations of bars
 > (`Force.tsx`); there is no `?props=` flag, no `heavy` pieces, no `TroopStatues`, `Cannons`, `ShadowSync`, `troopModels`, `troopPose`,
 > `pieceMove` (all of that, and the six GLBs, is in `app/_archive/statues/`, see its README). `assets.json` lists only `glows` and
