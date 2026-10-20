@@ -72,9 +72,8 @@ in the address forces one (it wins over the saved choice). `src/i18n.ts` has the
 are used with `t('español', 'English')`, and events and units carry `{ es, en }` pairs.
 
 Media are per language, with Spanish as the fallback: a video in `VIDEO_SOURCES` (`src/video/videos.ts`) and a line in
-`NARRATION_SOURCES` (`src/timeline/narrationLines.ts`) take an optional `en` file. Today only the 12:00 film has an English cut
-(`videos/villistas-en.mp4`); the other films and the map narration are Spanish in both languages. To add one:
-`npm run optimize-video -- <master.mov> <id>-en`, then `en: { src: 'videos/<id>-en.mp4' }` on its source (the Spanish poster is
+`NARRATION_SOURCES` (`src/timeline/narrationLines.ts`) take an optional `en` file. Today no film has an English cut: the English page plays the Spanish films with English subtitles (`*.en.vtt`), and the map narration is Spanish in both languages. To add one:
+`npm run optimize-video -- <master.mov> <id>-en`, upload it to R2 (see Deploy), then `en: { src: 'videos/<id>-en.mp4' }` on its source (the Spanish poster is
 reused); for a narration line, `en: { src, seconds }` (the day is paced by the length of the lines).
 
 ## Updating models from Blender
@@ -99,6 +98,19 @@ npm run build         # public/ is copied into dist/ at build time, so rebuild a
 Serve `dist/` with any static web server (`npm run preview` for a quick local check). There is no
 backend, but browsers do not allow opening `dist/index.html` straight from disk (`file://`): the page
 shows a hint instead of the map. The Draco decoder is bundled, so the app works fully offline.
+
+### The films live in R2, not in git
+
+`public/videos/*.mp4` is git-ignored. In production the Worker (`worker/index.ts`, bound as `FILMS` in `wrangler.jsonc`) serves
+`/videos/*.mp4` from the R2 bucket `toma-zacatecas-films`, with Range support, and falls back to the copy in `dist/` if a key is missing.
+Posters and subtitles (`.jpg`, `.vtt`) are ordinary static assets and deploy with the build. After optimising a film, upload it with
+the key `videos/<name>.mp4` (needs `wrangler login` as the account that owns the bucket):
+
+```bash
+npx wrangler r2 object put toma-zacatecas-films/videos/natera.mp4 --file public/videos/natera.mp4 --content-type video/mp4 --remote
+```
+
+`npm run deploy` publishes the Worker with its `FILMS` binding; it never touches the bucket's contents.
 
 ## How it works
 
