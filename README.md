@@ -10,7 +10,8 @@ meant to work on a tablet or a museum kiosk PC.
 
 ## Status
 
-The scene, the battle timeline with pins, five films with subtitles, narration and the Spanish/English page are built and deployed.
+The scene, the battle timeline with pins, five films with subtitles, narration and the Spanish/English page are built and deployed. The
+install-and-offline support (PWA) is built and checked locally; see "Install and offline" below.
 See [`HANDOVER.md`](HANDOVER.md) for the current state and what is next; the early design is in
 [the design spec](docs/superpowers/specs/2026-09-30-interactive-map-design.md).
 
@@ -109,6 +110,28 @@ npx wrangler r2 object put toma-zacatecas-films/videos/natera.mp4 --file public/
 
 `npm run deploy` publishes the Worker with its `FILMS` binding; it never touches the bucket's contents.
 
+### Install and offline (PWA)
+
+The page installs as an app (tablets and desktop; a manifest, 192/512/maskable icons and an `apple-touch-icon` are in `public/`) and
+works offline after one visit. The Install button, next to the sound and language buttons, shows only while the browser offers the
+install (Chromium); on an iPad use Share, Add to Home Screen. The service worker (`src/pwa/sw.ts`) is built as `dist/sw.js` and is
+registered in production builds only, so the dev server never has a stale worker.
+
+- **App files** (JS/CSS, models, Draco, audio, extras, posters, subtitles, manifest, icons; about 11 MB) are precached on install in
+  `app-<hash>` and answered cache-first. `precachePlugin` lists `dist/` after the build and writes the list and a content hash into
+  `sw.js`, so **any change to a precached file is a new cache name** and the old one is deleted on activate: there is nothing to bump by
+  hand. The page is network-first, with the cached `index.html` as the offline fallback (any `?lang=`).
+- **Films** are cached after their first play, in `films-v1` (never dropped by a deploy). The first request goes to the network so the
+  film starts at once; the worker also fetches the whole file **without `Range`** (the Cache API cannot store a 206) and stores it. From
+  then on the stored body answers every request, ranges included (206 with `Content-Range`, 416 past the end), which keeps seeking and
+  Safari working offline. When online, once per run of the worker, a `HEAD` compares the ETag with the stored one and a film replaced
+  under the same name is fetched again. To drop every stored film, change `FILMS` in `sw.ts`.
+- `public/_headers` gives `/sw.js` and `/manifest.webmanifest` `Cache-Control: no-cache`, and the page asks for a new worker on every
+  load, so updates reach a kiosk that is rarely reloaded. The Worker (`worker/index.ts`) is unchanged.
+- **After touching `sw.ts`, check it in a real browser** (`npm run build && npm run preview`, then: load once, reload, play a film, go
+  offline, reload and open `/?lang=en`, seek in the film). Cached lookups use `ignoreVary` on purpose: a module script is a CORS
+  request, and a server that sends `Vary: Origin` would otherwise never match what was cached.
+
 ## How it works
 
 | Piece | What it does |
@@ -122,6 +145,7 @@ npx wrangler r2 object put toma-zacatecas-films/videos/natera.mp4 --file public/
 | `src/camera/MapCamera.tsx` | Frames the camera from the loaded bounds, clamps panning, zoom and height, applies keyboard pan |
 | `src/camera/math.ts`, `keyboard.ts` | Pure, unit-tested camera and keyboard logic |
 | `src/ui/` | Loader and an error screen for missing or broken assets |
+| `src/pwa/` | The service worker (`sw.ts`, with its pure logic in `swLogic.ts`), the build plugin that writes its precache list (`precachePlugin.ts`), registration, and the install prompt (`install.ts`) |
 
 Stack: Vite, React 19, TypeScript, three.js, @react-three/fiber, @react-three/drei, vitest.
 
