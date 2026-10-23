@@ -54,7 +54,7 @@ self.addEventListener('fetch', (event) => {
 
 /** An app file from the cache (a range request, from an audio element, is answered with a 206 as Safari insists), else the network. */
 async function app(request: Request): Promise<Response> {
-  const stored = await (await caches.open(APP)).match(request, { ignoreSearch: true })
+  const stored = await (await caches.open(APP)).match(request, { ignoreSearch: true, ignoreVary: true })
   if (!stored) return fetch(request)
   const range = request.headers.get('range')
   return range ? partialResponse(await stored.blob(), range, stored.headers.get('content-type') ?? undefined) : stored
@@ -65,7 +65,7 @@ async function page(request: Request): Promise<Response> {
   try {
     return await fetch(request)
   } catch {
-    return (await (await caches.open(APP)).match(urlOf('index.html'))) ?? Response.error()
+    return (await (await caches.open(APP)).match(urlOf('index.html'), { ignoreVary: true })) ?? Response.error()
   }
 }
 
@@ -74,7 +74,7 @@ const checked = new Set<string>()
 
 async function film(event: FetchEvent): Promise<Response> {
   const { request } = event
-  const stored = await (await caches.open(FILMS)).match(request.url)
+  const stored = await (await caches.open(FILMS)).match(request.url, { ignoreVary: true })
   if (!stored) {
     event.waitUntil(cacheFilm(request.url))
     return fetch(request)
