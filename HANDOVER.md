@@ -55,14 +55,18 @@ Checked with Playwright (Chromium) against `npm run build && npm run preview`, w
 - Chromium's installability check (CDP `Page.getInstallabilityErrors`) reports only `in-incognito` (the test browser is private), and the
   manifest parses with no errors. Lighthouse 12 no longer has a PWA category.
 
-Deployed 2026-10-22 (Worker version 465b6ab1, then a second deploy for the fix below). The first live check found a bug the preview did
+Deployed 2026-10-22 (Worker versions 465b6ab1, then bda1c116 with the fix below). The first live check found a bug the preview did
 not show: Cloudflare answers `/index.html` with a 307 to `/`, so the precached `index.html` was a redirected response, which a
 navigation cannot use, and the app did not reload offline. The page is now cached under the scope root (`/`). `npx wrangler dev`
 reproduces the redirect locally and is the test to run after touching `sw.ts` (the old code fails it, the fix passes it: offline `/`,
 `/?lang=en` and `/?lang=es` all boot with no console errors). The other bug the browser check caught: module scripts are CORS requests,
 and a server that answers `Vary: Origin` never matched the cached copies until the lookups used `ignoreVary` (kept in `sw.ts`).
 
-Not checked: Safari/iPadOS and real tablet hardware. Before announcing it, open the live site on an iPad once and repeat "play a film,
+Checked on the live site after the second deploy (Chromium, fresh profile): the worker installs and precaches 36 files; a film's first
+range request comes from R2 (206) and the whole file is stored in `films-v1`; offline, `/`, `/?lang=en` and `/?lang=es` boot with no console
+errors, the stored film answers 206/416/200 correctly and a `<video>` seeks to 20 s. Not checked: a visitor who had the first (broken)
+worker: the cache name is a hash of the precached files, which did not change, so the new worker adds the page to the same `app-*` cache;
+that path was reasoned, not run. Also not checked: Safari/iPadOS and real tablet hardware. Before announcing it, open the live site on an iPad once and repeat "play a film,
 go offline, reload, seek".
 
 ## Stale docs (known)
