@@ -5,7 +5,7 @@ export function registerServiceWorker(): void {
     navigator.serviceWorker
       .register(new URL('sw.js', document.baseURI))
       // Browsers look for a new worker on a navigation only about once a day; a kiosk that reloads rarely would run an old build.
-      .then((registration) => registration.update())
+      .then((registration) => registration.update().catch(() => {})) // offline: nothing to look for
       .catch((error) => console.warn('service worker not registered', error))
   })
 }
