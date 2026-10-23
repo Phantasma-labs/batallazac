@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "La Toma de Zacatecas · The Taking of Zacatecas",
+  "short_name": "La Toma",
+  "description": "Mapa interactivo de la batalla del 23 de junio de 1914 · Interactive map of the battle of 23 June 1914.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "theme_color": "#d9cdb4",
+  "background_color": "#d9cdb4",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
