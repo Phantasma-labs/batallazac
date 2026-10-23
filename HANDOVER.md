@@ -36,7 +36,7 @@ them the app skips a missing film and carries on; `npm test` skips the film-file
   Use `npm run deploy:dry` to check a change without publishing.
 - Do not change `wrangler.jsonc`'s `main`, `r2_buckets` or `assets.run_worker_first` without a reason: dropping them silently breaks the films.
 
-## The PWA (built 2026-10-22, not deployed yet)
+## The PWA (built and deployed 2026-10-22)
 
 Install and offline support are built (spec `docs/superpowers/specs/2026-10-22-pwa-design.md`, plan `docs/superpowers/plans/2026-10-22-pwa.md`,
 work on the `pwa` branch). How it works, and how to change it safely, is in the README's "Install and offline (PWA)" section. In short: a
@@ -55,10 +55,15 @@ Checked with Playwright (Chromium) against `npm run build && npm run preview`, w
 - Chromium's installability check (CDP `Page.getInstallabilityErrors`) reports only `in-incognito` (the test browser is private), and the
   manifest parses with no errors. Lighthouse 12 no longer has a PWA category.
 
-Not checked: Safari/iPadOS and real tablet hardware, and the Cloudflare-served build (the preview server was used). Before announcing it,
-deploy (see above), open the live site once in Chrome and on an iPad, and repeat "play a film, go offline, reload, seek". One bug the
-browser check caught is worth knowing: module scripts are CORS requests, and a server that answers `Vary: Origin` never matched the
-cached copies until the lookups used `ignoreVary` (kept in `sw.ts`; the live Cloudflare assets may or may not send that header).
+Deployed 2026-10-22 (Worker version 465b6ab1, then a second deploy for the fix below). The first live check found a bug the preview did
+not show: Cloudflare answers `/index.html` with a 307 to `/`, so the precached `index.html` was a redirected response, which a
+navigation cannot use, and the app did not reload offline. The page is now cached under the scope root (`/`). `npx wrangler dev`
+reproduces the redirect locally and is the test to run after touching `sw.ts` (the old code fails it, the fix passes it: offline `/`,
+`/?lang=en` and `/?lang=es` all boot with no console errors). The other bug the browser check caught: module scripts are CORS requests,
+and a server that answers `Vary: Origin` never matched the cached copies until the lookups used `ignoreVary` (kept in `sw.ts`).
+
+Not checked: Safari/iPadOS and real tablet hardware. Before announcing it, open the live site on an iPad once and repeat "play a film,
+go offline, reload, seek".
 
 ## Stale docs (known)
 

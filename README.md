@@ -120,7 +120,7 @@ registered in production builds only, so the dev server never has a stale worker
 - **App files** (JS/CSS, models, Draco, audio, extras, posters, subtitles, manifest, icons; about 11 MB) are precached on install in
   `app-<hash>` and answered cache-first. `precachePlugin` lists `dist/` after the build and writes the list and a content hash into
   `sw.js`, so **any change to a precached file is a new cache name** and the old one is deleted on activate: there is nothing to bump by
-  hand. The page is network-first, with the cached `index.html` as the offline fallback (any `?lang=`).
+  hand. The page is network-first, with the cached page as the offline fallback (any `?lang=`); it is stored under the scope root `/`, not as `/index.html`, because Cloudflare redirects `/index.html` to `/` and a redirected response cannot answer a navigation.
 - **Films** are cached after their first play, in `films-v1` (never dropped by a deploy). The first request goes to the network so the
   film starts at once; the worker also fetches the whole file **without `Range`** (the Cache API cannot store a 206) and stores it. From
   then on the stored body answers every request, ranges included (206 with `Content-Range`, 416 past the end), which keeps seeking and
@@ -128,7 +128,7 @@ registered in production builds only, so the dev server never has a stale worker
   under the same name is fetched again. To drop every stored film, change `FILMS` in `sw.ts`.
 - `public/_headers` gives `/sw.js` and `/manifest.webmanifest` `Cache-Control: no-cache`, and the page asks for a new worker on every
   load, so updates reach a kiosk that is rarely reloaded. The Worker (`worker/index.ts`) is unchanged.
-- **After touching `sw.ts`, check it in a real browser** (`npm run build && npm run preview`, then: load once, reload, play a film, go
+- **After touching `sw.ts`, check it in a real browser**, against `npx wrangler dev` (the Workers runtime, with Cloudflare's redirects) as well as `npm run preview`: `vite preview` does not redirect `/index.html` and hid a bug that the live site had. (`npm run build`, run one of them, then: load once, reload, play a film, go
   offline, reload and open `/?lang=en`, seek in the film). Cached lookups use `ignoreVary` on purpose: a module script is a CORS
   request, and a server that sends `Vary: Origin` would otherwise never match what was cached.
 

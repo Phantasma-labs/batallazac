@@ -22,7 +22,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(APP)
-      await cache.addAll(FILES.split('|').filter(Boolean).map((f) => new Request(urlOf(f), { cache: 'reload' })))
+      // The page is stored under the scope root: Cloudflare answers /index.html with a redirect, and a redirected response cannot answer a navigation.
+      const files = FILES.split('|').filter((f) => f && f !== 'index.html')
+      await cache.addAll([urlOf(''), ...files.map(urlOf)].map((url) => new Request(url, { cache: 'reload' })))
       await self.skipWaiting()
     })(),
   )
@@ -60,12 +62,12 @@ async function app(request: Request): Promise<Response> {
   return range ? partialResponse(await stored.blob(), range, stored.headers.get('content-type') ?? undefined) : stored
 }
 
-/** The page from the network; offline, the cached index.html whatever the query (?lang=en). */
+/** The page from the network; offline, the cached page whatever the query (?lang=en). */
 async function page(request: Request): Promise<Response> {
   try {
     return await fetch(request)
   } catch {
-    return (await (await caches.open(APP)).match(urlOf('index.html'), { ignoreVary: true })) ?? Response.error()
+    return (await (await caches.open(APP)).match(urlOf(''), { ignoreVary: true })) ?? Response.error()
   }
 }
 
