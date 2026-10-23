@@ -237,7 +237,7 @@
   gap: calc(10 * var(--px));
   pointer-events: auto; /* the section around it ignores the pointer */
 }
-.tl-play, .tl-voice, .tl-lang {
+.tl-play, .tl-voice, .tl-lang, .tl-install {
   width: calc(48 * var(--px));
   height: calc(48 * var(--px));
   display: grid;
@@ -249,7 +249,7 @@
   border-radius: 50%;
   cursor: pointer;
 }
-.tl-play:hover, .tl-voice:hover, .tl-lang:hover { color: #ffc860; background: rgba(243, 233, 210, 0.16); }
+.tl-play:hover, .tl-voice:hover, .tl-lang:hover, .tl-install:hover { color: #ffc860; background: rgba(243, 233, 210, 0.16); }
 .tl-lang { font: 700 calc(15 * var(--px))/1 var(--sans); letter-spacing: 0.06em; }
 .tl-voice.is-off { color: var(--text); opacity: 0.7; }
 /* Play is the main control: bigger than the other two, and the row lines up on its centre. */
@@ -272,7 +272,8 @@
 @keyframes tl-play-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(242, 180, 65, 0); } 50% { box-shadow: 0 0 calc(22 * var(--px)) rgba(242, 180, 65, 0.55); } }
 .tl-voice svg { width: calc(32 * var(--px)); height: calc(32 * var(--px)); fill: currentColor; stroke: none; }
 .tl-voice .tl-voice-x { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.tl-play:focus-visible, .tl-voice:focus-visible, .tl-lang:focus-visible, .tl-tick:focus-visible { outline: calc(2 * var(--px)) solid #fffaf0; outline-offset: calc(2 * var(--px)); }
+.tl-install svg { width: calc(30 * var(--px)); height: calc(30 * var(--px)); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tl-play:focus-visible, .tl-voice:focus-visible, .tl-lang:focus-visible, .tl-install:focus-visible, .tl-tick:focus-visible { outline: calc(2 * var(--px)) solid #fffaf0; outline-offset: calc(2 * var(--px)); }
 
 .tl-clock {
   min-width: calc(84 * var(--px));

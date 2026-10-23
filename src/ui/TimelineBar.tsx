@@ -7,6 +7,7 @@ import { DAY_END, DAY_START, formatClock, hm, nextEvent, previousEvent, type Tim
 import { BAR_END, SQUEEZES, fromBar, toBar } from '../timeline/timeScale'
 import { captionText, focusEvent, laneOf, tickGroups, tickTip } from './captions'
 import { playback } from '../video/playback'
+import { InstallButton } from './InstallButton'
 import { VIDEO_FILES } from '../video/videos'
 import './timeline.css'
 import { LANG, pick, switchLang, t } from '../i18n'
@@ -191,6 +192,7 @@ export function TimelineBar() {
             {muted ? <path d="M16 9l5 6M21 9l-5 6" className="tl-voice-x" /> : <path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" className="tl-voice-x" />}
           </svg>
         </button>
+        <InstallButton />
         <button
           className="tl-lang"
           onClick={switchLang}
