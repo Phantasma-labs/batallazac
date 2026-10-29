@@ -2,11 +2,13 @@ import { useEffect, useRef, useSyncExternalStore, type PointerEvent as ReactPoin
 import { narration } from '../audio/narration'
 import { clock, useClock } from '../timeline/clock'
 import { EVENTS } from '../timeline/events'
-import { watchIdleReset } from '../timeline/idleReset'
+import { combine, watchIdleReset } from '../timeline/idleReset'
 import { DAY_END, DAY_START, formatClock, hm, nextEvent, previousEvent, type TimelineEvent } from '../timeline/model'
 import { BAR_END, SQUEEZES, fromBar, toBar } from '../timeline/timeScale'
 import { captionText, focusEvent, laneOf, tickGroups, tickTip } from './captions'
 import { playback } from '../video/playback'
+import { watchPanelIdle } from '../profiles/panelIdle'
+import { profiles } from '../profiles/profiles'
 import { InstallButton } from './InstallButton'
 import { VIDEO_FILES } from '../video/videos'
 import './timeline.css'
@@ -48,12 +50,14 @@ export function TimelineBar() {
   // At the start (and once the day is over) the Play button calls for attention: a bobbing arrow and a pulsing ring.
   const callPlay = !playing && (time <= DAY_START || time >= DAY_END)
 
-  // A kiosk: ten seconds after the day ends with nobody at it, everything goes back to the start.
-  useEffect(() => watchIdleReset(clock, playback), [])
+  // A kiosk: ten seconds after the day ends with nobody at it (no film, no profile panel open), everything goes back to the start.
+  useEffect(() => watchIdleReset(clock, combine(playback, profiles)), [])
+  // A profile panel nobody has touched for 90 seconds closes, and the day goes on as it was.
+  useEffect(() => watchPanelIdle(profiles), [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (playback.current) return // a video is open: the overlay owns the keys
+      if (playback.current || profiles.current) return // a video or a profile is open: its overlay owns the keys
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return
       if (e.code === 'Space' && !(t && t.tagName === 'BUTTON')) {

@@ -1,0 +1,114 @@
+/* The three general buttons (bottom centre) and the profile panel (over the map, above the timeline, which is 30). */
+.pf-buttons, .pf {
+  --px: clamp(1px, min(calc(1px + (100vh - 768px) * 0.0008), calc(1px + (100vw - 1344px) * 0.00045)), 2px); /* the bar's own unit, which is only defined inside .tl */
+  --pf-text: clamp(17px, 1.05vw, 24px); /* about 20 px at 1920 wide */
+}
+
+/* Bottom centre: under the timeline (30) and the English subtitle (29), clear of the bottom-left controls and the bottom-right caption. */
+.pf-buttons {
+  position: fixed;
+  left: 50%;
+  bottom: calc(14 * var(--px));
+  transform: translateX(-50%);
+  z-index: 28;
+  display: flex;
+  gap: calc(14 * var(--px));
+  font-family: var(--sans);
+}
+.pf-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(5 * var(--px));
+  min-width: calc(92 * var(--px));
+  min-height: 48px;
+  padding: calc(8 * var(--px)) calc(12 * var(--px)) calc(7 * var(--px));
+  cursor: pointer;
+  color: var(--paper);
+  background: rgba(14, 10, 6, 0.78);
+  border: 1px solid rgba(229, 72, 58, 0.55);
+  border-radius: calc(10 * var(--px));
+  box-shadow: 0 calc(3 * var(--px)) calc(12 * var(--px)) rgba(0, 0, 0, 0.5);
+}
+.pf-button:hover { background: rgba(43, 20, 14, 0.92); border-color: var(--red); }
+.pf-button:focus-visible, .pf-close:focus-visible, .pf-text:focus-visible { outline: 2px solid #fffaf0; outline-offset: 2px; }
+.pf-thumb {
+  box-sizing: border-box;
+  width: calc(56 * var(--px));
+  height: calc(56 * var(--px));
+  object-fit: cover;
+  border: 2px solid var(--red);
+  border-radius: 50%;
+  background: #3a1612;
+  user-select: none;
+}
+.pf-thumb-none { display: grid; place-items: center; font: 700 calc(24 * var(--px)) var(--serif); color: var(--paper); }
+.pf-name { font: 600 calc(15 * var(--px)) / 1.1 var(--serif); letter-spacing: 0.04em; white-space: nowrap; }
+
+/* The panel: layout A. The video and the X stay put; only the text block scrolls when it does not fit. */
+.pf {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  color: var(--paper);
+  font-family: var(--sans);
+  background: rgba(8, 5, 2, 0.72);
+}
+.pf-panel {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(14 * var(--px));
+  width: min(94vw, 1500px);
+  max-height: 94vh;
+  padding: calc(20 * var(--px)) calc(24 * var(--px));
+  outline: none;
+  background: var(--ink);
+  border: 1px solid rgba(242, 180, 65, 0.55);
+  border-radius: calc(12 * var(--px));
+  box-shadow: 0 calc(10 * var(--px)) calc(40 * var(--px)) rgba(0, 0, 0, 0.7);
+}
+.pf-close {
+  position: absolute;
+  top: calc(12 * var(--px));
+  right: calc(12 * var(--px));
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: max(44px, calc(44 * var(--px)));
+  height: max(44px, calc(44 * var(--px)));
+  padding: 0;
+  cursor: pointer;
+  color: var(--paper);
+  background: rgba(12, 8, 4, 0.55);
+  border: 1px solid rgba(243, 233, 210, 0.35);
+  border-radius: 50%;
+}
+.pf-close:hover { background: rgba(243, 233, 210, 0.22); }
+.pf-close svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+
+.pf-top { display: grid; grid-template-columns: minmax(0, 58%) minmax(0, 1fr); gap: calc(24 * var(--px)); align-items: start; flex: none; padding-right: calc(52 * var(--px)); }
+.pf-stage { aspect-ratio: 16 / 9; overflow: hidden; background: #120c07; border: 1px solid rgba(243, 233, 210, 0.2); border-radius: calc(6 * var(--px)); }
+.pf-video { display: block; width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+.pf-id { align-self: center; }
+.pf-title { margin: 0 0 calc(10 * var(--px)); font: 700 clamp(26px, 2.1vw, 42px) / 1.1 var(--serif); color: var(--paper); }
+.pf-role, .pf-years { margin: 0 0 calc(6 * var(--px)); font: 500 var(--pf-text) / 1.35 var(--sans); color: var(--paper-dim); }
+.pf-years { color: var(--gold); font-variant-numeric: tabular-nums; }
+
+.pf-text { flex: 1 1 auto; min-height: 0; overflow-y: auto; outline: none; padding-right: calc(6 * var(--px)); font: 400 var(--pf-text) / 1.45 var(--sans); }
+.pf-text section { margin: 0 0 calc(14 * var(--px)); }
+.pf-text h3 { margin: 0 0 calc(6 * var(--px)); font: 700 calc(14 * var(--px)) / 1.2 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.pf-text p { margin: 0; }
+.pf-text ul { margin: 0; padding-left: 1.2em; }
+.pf-skills { display: flex; flex-wrap: wrap; gap: calc(8 * var(--px)); padding: 0; list-style: none; }
+.pf-skills li { padding: calc(3 * var(--px)) calc(12 * var(--px)); border: 1px solid rgba(229, 72, 58, 0.7); border-radius: 999px; }
+.pf-army { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(180 * var(--px)), 1fr)); gap: calc(8 * var(--px)) calc(20 * var(--px)); margin: 0; }
+.pf-army div { display: flex; flex-direction: column; }
+.pf-army dt { color: var(--paper-dim); font-size: 0.85em; }
+.pf-army dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pf-note { margin-top: calc(6 * var(--px)) !important; font-size: 0.8em; font-style: italic; color: var(--paper-dim); }
+
+@media (prefers-reduced-motion: reduce) { .pf-button, .pf-close { transition: none; } }
