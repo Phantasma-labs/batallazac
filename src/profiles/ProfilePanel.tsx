@@ -74,7 +74,11 @@ function Panel({ open }: { open: OpenProfile }) {
               <video ref={video} className="pf-video" src={portrait.src} poster={portrait.poster} muted playsInline preload="auto" onClick={replay} />
             ) : portrait?.poster ? (
               <img className="pf-video" src={portrait.poster} alt="" />
-            ) : null}
+            ) : (
+              <div className="pf-stage-none" aria-hidden>
+                {general.name[0]}
+              </div>
+            )}
           </div>
           <div className="pf-id">
             <h2 className="pf-title">{general.name}</h2>
