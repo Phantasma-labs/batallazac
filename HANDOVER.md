@@ -1,4 +1,6 @@
-# Handover (2026-10-22)
+# Handover (2026-10-29)
+
+**2026-10-29: the general profiles are built and committed locally but NOT yet published. Read "General profiles" below, then follow "Publishing the profiles" before anything else.**
 
 For the next agent (or person) working on the Linux laptop clone. Read this first, then `README.md`; `docs/superpowers/progress/HANDOFF.md`
 is the long history of the timeline work and is **partly stale** (see "Stale docs" below). The workstation (Windows, holds the Blender
@@ -7,7 +9,8 @@ and Resolve masters) answered the clone's `request.md` with this file; `request.
 ## Where things stand
 
 - Live site: `https://toma-zacatecas.phantasmalabs.com` (Cloudflare Worker `toma-zacatecas`; the old `toma-zacatecas.phantomvfx.workers.dev` also works).
-- `master` on GitHub (`Phantasma-labs/batallazac`, public) is the single source of truth. Tests: 639 pass (after the PWA work); `npm run typecheck` is clean.
+- `master` on GitHub (`Phantasma-labs/batallazac`, public) is the single source of truth. Tests: 658 pass, 1 skipped (after the profiles); `npm run typecheck` is clean.
+- Live today = the PWA build of 2026-10-22. The profile buttons and panel (10 local commits ahead of `origin/master`) are not live until "Publishing the profiles" is done.
 - Five films play on the timeline, all Spanish: `felipe-angeles` (00:00, resumes at 10:00), `villistas` (12:00), `natera` (16:00), `zacatecas-centro` (17:00), `la-bufa` (19:00). Narration for the map is Spanish.
 - **No English film exists.** The English page plays the Spanish films with English subtitles (`public/videos/*.en.vtt`). The earlier
   note that `videos/villistas-en.mp4` is expected was out of date; nothing in `src/` references it, so a 404 for it is correct.
@@ -16,7 +19,7 @@ and Resolve masters) answered the clone's `request.md` with this file; `request.
 
 | In git (a fresh clone runs) | Not in git |
 |---|---|
-| App source, tests, scripts, `worker/`, `wrangler.jsonc` | `public/videos/*.mp4` (git-ignored; 18-21 MB each, the repo is public) |
+| App source, tests, scripts, `worker/`, `wrangler.jsonc` | `public/videos/*.mp4` (git-ignored; 18-21 MB each, the repo is public), including the three portrait clips `angeles-portrait.mp4`, `villa-portrait.mp4`, `natera-portrait.mp4` (0.3-0.6 MB each) |
 | `public/models` (4.4 MB), `public/audio`, `public/draco`, `public/extras`, posters (`.jpg`) and subtitles (`.vtt`) | Blender / Resolve masters (only on the workstation) |
 | `_archive/**` sources (the retired statues' GLBs are ignored) | `dist/`, `.wrangler/`, `node_modules/` |
 
@@ -68,6 +71,44 @@ errors, the stored film answers 206/416/200 correctly and a `<video>` seeks to 2
 worker: the cache name is a hash of the precached files, which did not change, so the new worker adds the page to the same `app-*` cache;
 that path was reasoned, not run. Also not checked: Safari/iPadOS and real tablet hardware. Before announcing it, open the live site on an iPad once and repeat "play a film,
 go offline, reload, seek".
+
+## General profiles (built 2026-10-29)
+
+Three buttons at the bottom centre (Ángeles, Villa, Natera; the Federales were dropped on purpose) pause the day and open a modal profile
+panel: a silent portrait clip that plays once and rests on its last frame, name / role / years, the Army block under them, then Skills
+(bullets), His part at Zacatecas and Known facts. Closing resumes the clock from the same minute (only if it was playing). Spanish and English
+text; the panel closes itself after 90 s untouched and blocks the 10 s end-of-day reset while open. Spec
+`docs/superpowers/specs/2026-10-29-general-profiles-design.md`, plan `docs/superpowers/plans/2026-10-29-general-profiles.md`.
+
+- Code: `src/profiles/` (`profiles.ts` store, `GeneralButtons.tsx`, `ProfilePanel.tsx`, `generals.ts` = all the text, `portraits.ts`, `panelIdle.ts`), styles in `src/ui/profile.css`.
+- The text is the researched, approved `Research/General_Profiles_Content.md` (workstation only, outside this repo: ES + EN, sources and confidence tags per line).
+  Rules that were decided, so do not "improve" them: no Ammunition row (no source gives an honest figure); no row whose figure does not exist; no
+  Villa quotation (unverified); no estimate note under the Army block; Ángeles's artillery reads "30 cañones" / "30 cannons" (the owner's figure,
+  although sources give 13 to 40). `generals.test.ts` fails on a leftover `TODO`, a missing language or an ammunition row.
+- The clips are **not** `VIDEO_SOURCES` films: `portraits.ts` has its own table, and the file names `videos/<id>-portrait.mp4` (+ `.jpg` poster and `<id>-thumb.jpg` round button picture) must not collide with a film.
+  Ángeles = `Shots/001-FelipeAngeles/video/010_Prores.mov` (slow push-in on the colour portrait); Villa = the restoration comp of clip 002; Natera =
+  a Seedance 2.5 render of the processed still `Shots/Portraits/stills/finalforvideo.png` (master `Shots/Portraits/masters/natera_final_720.mp4`). Masters
+  are on the workstation only. Re-encode with `npm run optimize-video -- <master> <id>-portrait --max-height 720`, then cut the thumbnail from the last frame (240x240; use `-ss` near the end, `-sseof` returned the wrong frame).
+- The three `.mp4` files are git-ignored like the films; the `.jpg` posters and thumbnails are in git. The service worker already treats `videos/*.mp4` as films (not precached, stored whole after the first play), and the new `.jpg` files change the precache hash, so visitors pick up the new build on their next reload. No `sw.ts` change was needed or made.
+- Checked in the browser (Chromium, dev server): the three buttons, the Villa and Natera panels, layout at 1920x1080 and an 800x600 pane, `npm test` and `npm run typecheck`. Not checked: Safari/iPad, the live site, the offline path for the new clips.
+
+### Publishing the profiles
+
+Order matters: R2 first (it only adds three keys), then push, then deploy. Deploying first would ship panels whose clips fall back to the
+Worker's non-range static copy.
+
+1. `git status` clean, `npm test && npm run typecheck`.
+2. `npx wrangler whoami` (the account that owns the Worker `toma-zacatecas`; `npx wrangler login` if not).
+3. Upload the three clips (from this machine, which has the files):
+   ```bash
+   for n in angeles villa natera; do
+     npx wrangler r2 object put toma-zacatecas-films/videos/$n-portrait.mp4 --file public/videos/$n-portrait.mp4 --content-type video/mp4 --remote
+   done
+   ```
+   Sizes in bytes to confirm against: angeles 568037, villa 453180, natera 344257.
+4. `git push origin master` (10 commits).
+5. `npm run deploy:dry`, then `npm run deploy`.
+6. Check the live site (see the checklist in the publish prompt: three ranged requests answer 206, posters and thumbs 200, panels open, a clip rests on its last frame, a second visit works offline after one play).
 
 ## Stale docs (known)
 
