@@ -84,22 +84,21 @@ function Panel({ open }: { open: OpenProfile }) {
             <h2 className="pf-title">{general.name}</h2>
             <p className="pf-role">{pick(general.role)}</p>
             <p className="pf-years">{general.years}</p>
+            <section className="pf-army-block">
+              <h3>{t('Ejército', 'Army')}</h3>
+              <dl className="pf-army">
+                {general.army.map((row) => (
+                  <div key={row.label.es}>
+                    <dt>{pick(row.label)}</dt>
+                    <dd>{pick(row.value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           </div>
         </div>
 
         <div className="pf-text" tabIndex={0} aria-label={t('Datos del general', 'About the general')}>
-          <section>
-            <h3>{t('Ejército', 'Army')}</h3>
-            <dl className="pf-army">
-              {general.army.map((row) => (
-                <div key={row.label.es}>
-                  <dt>{pick(row.label)}</dt>
-                  <dd>{pick(row.value)}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="pf-note">{t('Estimación histórica; las fuentes difieren', 'Historical estimate; sources differ')}</p>
-          </section>
           <section>
             <h3>{t('Habilidades', 'Skills')}</h3>
             <ul className="pf-skills">

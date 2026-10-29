@@ -28,7 +28,7 @@ export const GENERALS: readonly General[] = [
     role: { es: 'Jefe de artillería de la División del Norte', en: 'Chief of artillery, Division of the North' },
     years: '1868 – 1919',
     army: [
-      { label: { es: 'Artillería', en: 'Artillery' }, value: { es: '~29 piezas (las fuentes dan de 13 a 40)', en: '~29 guns (sources give 13 to 40)' } },
+      { label: { es: 'Artillería', en: 'Artillery' }, value: { es: '30 cañones', en: '30 cannons' } },
       { label: { es: 'Mando', en: 'Command' }, value: { es: 'Toda la artillería de la División del Norte', en: 'All the artillery of the Division of the North' } },
     ],
     skills: [

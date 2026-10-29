@@ -39,8 +39,7 @@ bottom-right, `Subtitle` at z-index 29) in the browser at 1920x1080 and at a tab
 - Top-right of the video: three short lines: name, rank/role, years.
 - Below: a text block with labelled rows:
   1. **Ejército / Army**: a list of stat rows (see data model). Rows differ per general: a general without artillery but with cavalry
-     shows cavalry instead. Each estimate is a range with a single small note line under the block: "Estimación histórica; las fuentes difieren" /
-     "Historical estimate; sources differ".
+     shows cavalry instead. (The "Historical estimate; sources differ" note line was dropped on 2026-10-29 at the user's request.)
   2. **Habilidades / Skills**: 3 or 4 short tags or one line each.
   3. **Su papel en Zacatecas / His part at Zacatecas**: 2 or 3 sentences tied to what the map shows.
   4. **Datos / Known facts**: 2 or 3 bullets.
@@ -89,12 +88,12 @@ type General = {
 army rows, skills, part at Zacatecas, facts). Transcribe it into `generals.ts` verbatim; do not add, rephrase or "improve" historical claims.
 Rules for transcribing:
 - Drop the `[tags]` and source notes; they are for us, not the panel.
-- **No Ammunition row** (decided: no honest number exists). Ángeles's rows are artillery (`~29 piezas (las fuentes dan de 13 a 40)`) and command;
+- **No Ammunition row** (decided: no honest number exists). Ángeles's rows are artillery (`30 cañones`, the user's figure, 2026-10-29) and command;
   Villa's are men, main arm, support; Natera's are command and men. Rows differ per general by design.
 - Where a row is tagged `[?]` (Ángeles's men, Natera's cavalry, Dorados headcount) it is **not shown**.
 - Natera, thin sources: show "~6,000 (junto con los hermanos Arrieta)"; show birth as "1882" only (no birthplace); keep the 12–14 June wording.
 - Villa's "Espero que esta pelea la ganen sus cañones" is **not** used (unverified quote).
-- Under the army block: *Estimación histórica; las fuentes difieren* / *Historical estimate; sources differ*.
+- No note line under the army block (removed 2026-10-29).
 If anything in the file contradicts what you can see on the map (dates, places), stop and report it rather than choosing.
 
 ## Constraints
