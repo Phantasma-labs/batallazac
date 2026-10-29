@@ -21,11 +21,13 @@ describe('listPrecache', () => {
   it('lists the app files, not the worker, the headers or the films', () => {
     expect(listPrecache(dir)).toEqual(['assets/a-1.js', 'index.html', 'models/f.glb', 'videos/natera.en.vtt', 'videos/natera.jpg'])
   })
-  it('refuses a name that would corrupt the list', () => {
+  // Windows cannot create files named with | " or a backslash, so those cases only run elsewhere.
+  const windows = process.platform === 'win32'
+  it.skipIf(windows)('refuses a name that would corrupt the list', () => {
     put('we|ird.txt')
     expect(() => listPrecache(dir)).toThrow('we|ird.txt')
   })
-  it.each(["it's.txt", 'a"b.txt', 'a\\b.txt'])('refuses %s', (name) => {
+  it.each(windows ? ["it's.txt"] : ["it's.txt", 'a"b.txt', 'a\\b.txt'])('refuses %s', (name) => {
     put(name)
     expect(() => listPrecache(dir)).toThrow()
   })
