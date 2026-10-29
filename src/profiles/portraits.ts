@@ -10,6 +10,8 @@ export type PortraitFile = { src?: string; poster?: string; thumb?: string }
 
 export const PORTRAIT_FILES: Partial<Record<GeneralId, PortraitFile>> = {
   angeles: { src: 'videos/angeles-portrait.mp4', poster: 'videos/angeles-portrait.jpg', thumb: 'videos/angeles-thumb.jpg' },
+  villa: { src: 'videos/villa-portrait.mp4', poster: 'videos/villa-portrait.jpg', thumb: 'videos/villa-thumb.jpg' },
+  natera: { src: 'videos/natera-portrait.mp4', poster: 'videos/natera-portrait.jpg', thumb: 'videos/natera-thumb.jpg' },
 }
 
 export const portraitOf = (id: GeneralId): PortraitFile | undefined => PORTRAIT_FILES[id]

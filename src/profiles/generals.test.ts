@@ -22,16 +22,17 @@ describe('the three generals', () => {
     }
   })
 
-  // Until the researched text is supplied nothing historical may be written from memory: delete this test when the real data lands.
-  it('hold no history yet: every value, role, year, skill, part and fact is TODO', () => {
-    const todo = { es: 'TODO', en: 'TODO' }
+  it('hold the approved text: no placeholder left, every line in both languages, no ammunition row', () => {
     for (const g of GENERALS) {
-      expect(g.role).toEqual(todo)
-      expect(g.years).toBe('TODO')
-      expect(g.part).toEqual(todo)
-      for (const row of g.army) expect(row.value).toEqual(todo)
-      for (const s of g.skills) expect(s).toEqual(todo)
-      for (const f of g.facts) expect(f).toEqual(todo)
+      const lines = [g.role, g.part, ...g.army.flatMap((r) => [r.label, r.value]), ...g.skills, ...g.facts]
+      for (const line of lines) {
+        expect(line.es.trim()).not.toBe('')
+        expect(line.en.trim()).not.toBe('')
+        expect(line.es).not.toMatch(/TODO/)
+        expect(line.en).not.toMatch(/TODO/)
+      }
+      expect(g.years).toMatch(/^\d{4} – \d{4}$/)
+      expect(g.army.some((r) => /munici|ammunition/i.test(r.label.es + r.label.en))).toBe(false)
     }
   })
 })
