@@ -145,6 +145,7 @@ registered in production builds only, so the dev server never has a stale worker
 | `src/camera/MapCamera.tsx` | Frames the camera from the loaded bounds, clamps panning, zoom and height, applies keyboard pan |
 | `src/camera/math.ts`, `keyboard.ts` | Pure, unit-tested camera and keyboard logic |
 | `src/ui/` | Loader and an error screen for missing or broken assets |
+| `src/profiles/` | The three general buttons (Ángeles, Villa, Natera) and their profile panel: `profiles.ts` (the store: opening pauses the day, closing resumes it from the same minute), `generals.ts` (the panel text, still `TODO` until the researched text is supplied), `portraits.ts` (the silent portrait clips, `videos/<id>-portrait.mp4`, served from R2 like the films), `panelIdle.ts` (a panel nobody touches for 90 s closes). Spec: `docs/superpowers/specs/2026-10-29-general-profiles-design.md` |
 | `src/pwa/` | The service worker (`sw.ts`, with its pure logic in `swLogic.ts`), the build plugin that writes its precache list (`precachePlugin.ts`), registration, and the install prompt (`install.ts`) |
 
 Stack: Vite, React 19, TypeScript, three.js, @react-three/fiber, @react-three/drei, vitest.
