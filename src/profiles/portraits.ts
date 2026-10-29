@@ -8,6 +8,8 @@ import type { GeneralId } from './generals'
  */
 export type PortraitFile = { src?: string; poster?: string; thumb?: string }
 
-export const PORTRAIT_FILES: Partial<Record<GeneralId, PortraitFile>> = {}
+export const PORTRAIT_FILES: Partial<Record<GeneralId, PortraitFile>> = {
+  angeles: { src: 'videos/angeles-portrait.mp4', poster: 'videos/angeles-portrait.jpg', thumb: 'videos/angeles-thumb.jpg' },
+}
 
 export const portraitOf = (id: GeneralId): PortraitFile | undefined => PORTRAIT_FILES[id]
