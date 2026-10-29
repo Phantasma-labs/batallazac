@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createClock } from './clock'
-import { IDLE_RESET_MS, watchIdleReset } from './idleReset'
+import { IDLE_RESET_MS, combine, watchIdleReset } from './idleReset'
 import { DAY_END, DAY_START, hm } from './model'
 
 const make = (start: number) => {
@@ -86,5 +86,44 @@ describe('the reset after the day is over', () => {
     stop()
     vi.advanceTimersByTime(IDLE_RESET_MS * 3)
     expect(clock.time).toBe(DAY_END)
+  })
+})
+
+describe('combining what can hold the reset off (a film, a profile panel)', () => {
+  const source2 = () => {
+    const listeners = new Set<() => void>()
+    return { current: null as unknown, listeners, subscribe: (l: () => void) => (listeners.add(l), () => listeners.delete(l)) }
+  }
+
+  it('is open when either is, and tells its listeners when either changes', () => {
+    const film = source2()
+    const panel = source2()
+    const both = combine(film, panel)
+    expect(both.current).toBeFalsy()
+    panel.current = { id: 'villa' }
+    expect(both.current).toBe(panel.current)
+    const listener = vi.fn()
+    const off = both.subscribe(listener)
+    film.listeners.forEach((l) => l())
+    panel.listeners.forEach((l) => l())
+    expect(listener).toHaveBeenCalledTimes(2)
+    off()
+    expect(film.listeners.size + panel.listeners.size).toBe(0)
+  })
+
+  it('keeps the reset off while a panel is open at 20:00, and resets 10 s after it closes', () => {
+    const clock = createClock(DAY_END)
+    const film = source2()
+    const panel = source2()
+    panel.current = { id: 'angeles' }
+    watchIdleReset(clock, combine(film, panel), new EventTarget())
+    vi.advanceTimersByTime(IDLE_RESET_MS * 3)
+    expect(clock.time).toBe(DAY_END)
+    panel.current = null
+    panel.listeners.forEach((l) => l())
+    vi.advanceTimersByTime(IDLE_RESET_MS - 1)
+    expect(clock.time).toBe(DAY_END)
+    vi.advanceTimersByTime(1)
+    expect(clock.time).toBe(DAY_START)
   })
 })

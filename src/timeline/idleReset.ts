@@ -5,10 +5,23 @@ import { DAY_END, DAY_START } from './model'
 export const IDLE_RESET_MS = 10_000
 
 /** The input that counts as someone using the app. */
-const ACTIVITY = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'] as const
+export const ACTIVITY = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'] as const
 
-type Playback = { readonly current: unknown; subscribe(listener: () => void): () => void }
-type Source = Pick<EventTarget, 'addEventListener' | 'removeEventListener'>
+export type Playback = { readonly current: unknown; subscribe(listener: () => void): () => void }
+export type Source = Pick<EventTarget, 'addEventListener' | 'removeEventListener'>
+
+/** Several things that each keep the reset off while they are open (a film, a profile panel) as one: open when any is, heard when any changes. */
+export function combine(...sources: Playback[]): Playback {
+  return {
+    get current() {
+      return sources.map((s) => s.current).find(Boolean) ?? null
+    },
+    subscribe(listener) {
+      const offs = sources.map((s) => s.subscribe(listener))
+      return () => offs.forEach((off) => off())
+    },
+  }
+}
 
 /**
  * Sends the clock back to the start when the day has been over (20:00, stopped, no video open) for `ms` with no input. Any input
